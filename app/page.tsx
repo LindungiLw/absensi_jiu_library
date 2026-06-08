@@ -280,11 +280,11 @@ export default function HalamanAbsensi() {
 
           <p className="text-slate-500 text-sm font-medium flex items-center justify-center gap-1">
             Please tap your ID card on the scanner
-            <p className="text-slate-500 text-sm font-medium flex items-center justify-center gap-2">
-              Please tap your ID card on the scanner
-              <HandTapIcon className="w-5 h-5 text-blue-500" />
-            </p>
           </p>
+          <div className="text-slate-500 text-sm font-medium flex items-center justify-center gap-2">
+            Please tap your ID card on the scanner
+            <HandTapIcon className="w-5 h-5 text-blue-500" />
+          </div>
         </div>
 
         <form
