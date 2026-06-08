@@ -34,7 +34,7 @@ export default function AdminLayout({
       icon: <ReportIcon className="w-5 h-5" />,
     },
     {
-      name: "Pengaturan Kiosk",
+      name: "Pengaturan Log",
       href: "/admin/settings",
       icon: (
         <svg

@@ -100,23 +100,23 @@ export default function KioskLockScreen({
           />
         </div>
         <h2 className="text-xl font-black tracking-wide text-blue-700 uppercase">
-          STATION LOCKED
+          ABSENSI LOCKED
         </h2>
         <p className="text-xs text-slate-500 mt-1 mb-6">
-          Masukkan kredensial otoritas untuk mengaktifkan stasiun scanner.
+          Input username and PIN credentials
         </p>
 
         <form onSubmit={onUnlock} className="space-y-5 text-left">
           {/* INPUT USERNAME */}
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1">
-              Username / Email Admin
+              Username
             </label>
             <input
               ref={usernameInputRef}
               type="text"
               required
-              placeholder="Cth: admin@jiu.ac.id"
+              placeholder="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={unlocking}
@@ -127,7 +127,7 @@ export default function KioskLockScreen({
           {/* INPUT PIN 6 KOTAK INDIVIDU */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1">
-              6-Digit PIN Rekening Stasiun
+              6 Digit PIN
             </label>
             <div
               className="flex justify-between gap-2 sm:gap-3"
@@ -163,7 +163,7 @@ export default function KioskLockScreen({
             disabled={unlocking || passcode.length < pinLength}
             className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 mt-2"
           >
-            {unlocking ? "Memverifikasi PIN..." : "Aktifkan Scanner Presensi"}
+            {unlocking ? "Verifying PIN..." : "Activate"}
           </button>
         </form>
       </div>
