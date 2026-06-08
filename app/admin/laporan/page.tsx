@@ -45,6 +45,9 @@ export default function LaporanAbsensi() {
   const [sesiWaktu, setSesiWaktu] = useState<any[]>([]);
   const [loadingSesi, setLoadingSesi] = useState(false);
 
+  // State Pengendali Open/Close Custom Dropdown Kategori Download
+  const [openRoleDownload, setOpenRoleDownload] = useState(false);
+
   // Fungsi ini sekarang 100x Lebih Ringan karena tidak mengunduh data anggota!
   const fetchMasterData = async () => {
     setLoading(true);
@@ -111,7 +114,7 @@ export default function LaporanAbsensi() {
         return;
       }
 
-      // 🔥 2. LAZY LOAD: Tarik Master Data Anggota BARU SAAT EXCEL MAU DIBUAT
+      // 🔍 2. LAZY LOAD: Tarik Master Data Anggota BARU SAAT EXCEL MAU DIBUAT
       // Ini membuat halaman utama sangat ringan di awal!
       const resAnggota = await fetch("/api/anggota?limit=10000");
       const jsonAnggota = await resAnggota.json();
@@ -223,16 +226,44 @@ export default function LaporanAbsensi() {
             Ekspor:
           </span>
 
-          <select
-            value={downloadRole}
-            onChange={(e) => setDownloadRole(e.target.value)}
-            className="w-full sm:w-auto bg-white border border-emerald-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 outline-none"
-          >
-            <option value="all">Semua Kategori</option>
-            <option value="student">Mahasiswa</option>
-            <option value="lecturer">Dosen</option>
-            <option value="staff">Staff</option>
-          </select>
+          {/* CUSTOM DROPDOWN: Kategori Download */}
+          <div className="relative w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setOpenRoleDownload(!openRoleDownload)}
+              onBlur={() => setTimeout(() => setOpenRoleDownload(false), 200)}
+              className="w-full sm:w-auto bg-white border border-emerald-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 text-left flex justify-between items-center gap-4 transition-all cursor-pointer shadow-sm hover:border-emerald-300"
+            >
+              <span>
+                {downloadRole === "all" && "Semua Kategori"}
+                {downloadRole === "student" && "Mahasiswa"}
+                {downloadRole === "lecturer" && "Dosen"}
+                {downloadRole === "staff" && "Staff"}
+              </span>
+              <span className="text-emerald-400 text-[9px]">▼</span>
+            </button>
+            {openRoleDownload && (
+              <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg py-1 overflow-hidden animate-in fade-in slide-in-from-top-1">
+                {[
+                  { value: "all", label: "Semua Kategori" },
+                  { value: "student", label: "Mahasiswa" },
+                  { value: "lecturer", label: "Dosen" },
+                  { value: "staff", label: "Staff" },
+                ].map((opt) => (
+                  <li
+                    key={opt.value}
+                    onClick={() => {
+                      setDownloadRole(opt.value);
+                      setOpenRoleDownload(false);
+                    }}
+                    className="px-4 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer transition-colors text-left"
+                  >
+                    {opt.label}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           {/* INPUT RENTANG TANGGAL */}
           <div className="flex items-center gap-2 bg-white border border-emerald-200 rounded-lg px-2 py-1">

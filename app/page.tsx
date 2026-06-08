@@ -4,8 +4,12 @@ import { useState, useRef, useEffect } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./animations.css";
 import Card3D from "./Card3D";
-import BookBackground from "./BookBackground";
+import BookBackground from "./BookBackground"; // 🔥 Ikon & Buku melayang dipertahankan
 import { HandTapIcon, CrownIcon } from "./components/icons/LibraryIcons";
+
+// Import Komponen Terpisah
+import KioskLockScreen from "./components/KioskLockScreen";
+import KioskClosedScreen from "./components/KioskClosedScreen";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -23,15 +27,13 @@ const CONFETTI_COLORS = [
   "bg-emerald-400",
 ];
 
-// Perhitungan Confetti ditaruh di luar (Sudah benar! Mencegah lag saat render)
 const CONFETTI_PARTICLES = Array.from({ length: 60 }).map(() => {
   const angle = Math.random() * Math.PI * 2;
   const velocity = 150 + Math.random() * 350;
   const tx = Math.cos(angle) * velocity;
   const ty = Math.sin(angle) * velocity - 80;
   const rot = Math.random() * 360 + 180;
-  const color =
-    CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+  const color = CONFETTI_COLORS[0];
   const delay = Math.random() * 0.1;
   const size = Math.floor(Math.random() * 8) + 6;
   const isCircle = Math.random() > 0.5;
@@ -40,7 +42,7 @@ const CONFETTI_PARTICLES = Array.from({ length: 60 }).map(() => {
     tx: `${tx}px`,
     ty: `${ty}px`,
     rot: `${rot}deg`,
-    color,
+    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
     delay: `${delay}s`,
     size,
     isCircle,
@@ -61,10 +63,19 @@ export default function HalamanAbsensi() {
 
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
 
+  // STATE KIOSK LOCK SYSTEM
+  const [isLocked, setIsLocked] = useState(true);
+  const [username, setUsername] = useState("");
+  const [passcode, setPasscode] = useState("");
+  const [lockError, setLockError] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
+  const usernameInputRef = useRef<HTMLInputElement>(null);
   const notifTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const animTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 1. Ambil Data Kondisi Hari Libur Kampus
   useEffect(() => {
     fetch("/api/libur?today=true")
       .then((res) => res.json())
@@ -73,12 +84,15 @@ export default function HalamanAbsensi() {
           setIsLibur(true);
           setKetLibur(data.keterangan);
         } else {
-          inputRef.current?.focus();
+          setTimeout(() => usernameInputRef.current?.focus(), 100);
         }
       });
   }, []);
 
+  // 2. Kunci Fokus Scanner Tetap Stabil saat Kios Aktif (Unlocked)
   useEffect(() => {
+    if (isLocked || isLibur) return;
+
     const handleGlobalClick = () => {
       if (window.getSelection()?.toString() === "") {
         inputRef.current?.focus();
@@ -87,7 +101,7 @@ export default function HalamanAbsensi() {
     window.addEventListener("click", handleGlobalClick);
     inputRef.current?.focus();
     return () => window.removeEventListener("click", handleGlobalClick);
-  }, []);
+  }, [isLocked, isLibur]);
 
   const showNotification = (type: "success" | "error", msg: string) => {
     if (notifTimeoutRef.current) clearTimeout(notifTimeoutRef.current);
@@ -101,16 +115,59 @@ export default function HalamanAbsensi() {
     animTimeoutRef.current = setTimeout(() => setShowSuccessAnim(false), 1200);
   };
 
+  // PEMBUKA KUNCI STASIUN
+  const handleUnlockKiosk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !passcode.trim() || unlocking) return;
+
+    setUnlocking(true);
+    setLockError("");
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: username, password: passcode }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setIsLocked(false);
+        setPasscode("");
+        setTimeout(() => inputRef.current?.focus(), 100);
+      } else {
+        setLockError(data.error || "Kredensial salah atau akses ditolak.");
+        setPasscode("");
+        usernameInputRef.current?.focus();
+      }
+    } catch (err) {
+      setLockError("Gagal terhubung ke verifikasi server.");
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+  // PENGUNCI KEMBALI STASIUN
+  const handleLockKiosk = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setIsLocked(true);
+    setPasscode("");
+    setLogTerakhir(null);
+    setNotif(null);
+    setTimeout(() => usernameInputRef.current?.focus(), 100);
+  };
+
   const handleProsesAbsen = async (e: React.FormEvent) => {
     e.preventDefault();
     const scannedID = inputID.trim();
-    if (loading || !scannedID || isLibur) return;
+    if (loading || !scannedID || isLibur || isLocked) return;
 
     setLoading(true);
     setNotif(null);
     setShowSuccessAnim(false);
     setLogTerakhir(null);
-    setInputID(""); // Kosongkan input agar siap (Mencegah tampilan nge-lag)
+    setInputID("");
 
     try {
       const response = await fetch("/api/absensi", {
@@ -163,63 +220,54 @@ export default function HalamanAbsensi() {
       showNotification("error", "Campus internet connection issue");
     } finally {
       setLoading(false);
-
-      // Jika tidak ada setTimeout, kursor bisa hilang dan scanner macet!
       setTimeout(() => {
         inputRef.current?.focus();
       }, 10);
     }
   };
 
+  // RENDERING KONDISIONAL
   if (isLibur) {
     return (
-      <main
-        className={`${plusJakartaSans.className} min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 relative overflow-hidden`}
-      >
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-rose-100 rounded-full blur-[100px] pointer-events-none animate-pulse"></div>
-        <div className="w-full max-w-2xl bg-white border border-rose-200 rounded-3xl shadow-xl p-10 text-center z-10 relative">
-          <div className="flex justify-center mb-6">
-            <img
-              src="/JIU Library.png"
-              alt="JIU Library Logo"
-              className="h-20 md:h-24 w-auto object-contain grayscale opacity-50"
-            />
-          </div>
-          <div className="text-6xl mb-4">⛔</div>
-          <h1 className="text-4xl font-black text-rose-600 mb-2 tracking-widest">
-            LIBRARY CLOSED
-          </h1>
-          <p className="text-slate-500 text-lg mb-8">
-            The attendance system is disabled today.
-          </p>
-        </div>
-      </main>
+      <KioskClosedScreen
+        keterangan={ketLibur}
+        fontClass={plusJakartaSans.className}
+      />
     );
   }
 
+  if (isLocked) {
+    return (
+      <KioskLockScreen
+        username={username}
+        setUsername={setUsername}
+        passcode={passcode}
+        setPasscode={setPasscode}
+        lockError={lockError}
+        unlocking={unlocking}
+        onUnlock={handleUnlockKiosk}
+        usernameInputRef={usernameInputRef}
+        fontClass={plusJakartaSans.className}
+      />
+    );
+  }
+
+  // MEJA SCANNER UTAMA (PURE WHITE BACKGROUND WITH ANIMATIONS restored)
   return (
     <main
-      className={`${plusJakartaSans.className} min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-4 relative overflow-hidden select-none`}
+      className={`${plusJakartaSans.className} min-h-screen bg-white text-slate-800 flex flex-col items-center justify-center p-4 relative overflow-hidden select-none`}
     >
-      <div
-        className="absolute inset-0 z-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.11) 1px, transparent 0)",
-          backgroundSize: "28px 28px",
-        }}
-      />
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div
-          className="absolute top-[10%] left-[12%] w-80 h-80 bg-blue-100/55 rounded-full blur-[110px] animate-pulse"
-          style={{ animationDuration: "5s" }}
-        />
-        <div
-          className="absolute bottom-[15%] right-[12%] w-72 h-72 bg-sky-100/55 rounded-full blur-[110px] animate-pulse"
-          style={{ animationDuration: "7s" }}
-        />
+      {/* 🔒 TOMBOL LOCK SYSTEM INSTAN */}
+      <div className="absolute top-4 right-4 z-50">
+        <button
+          onClick={handleLockKiosk}
+          className="flex items-center gap-2 bg-white/80 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-500 hover:text-rose-600 rounded-xl px-4 py-2 text-xs font-bold shadow-sm backdrop-blur-sm transition-all"
+        >
+          🔒 Lock Station
+        </button>
       </div>
 
+      {/* 📚 ANIMASI BUKU & KATA-KATA MELAYANG DIKEMBALIKAN */}
       <BookBackground />
 
       {showSuccessAnim && (
@@ -270,17 +318,12 @@ export default function HalamanAbsensi() {
             <img
               src="/JIU Library.png"
               alt="JIU Library Logo"
-              className="h-20 md:h-24 w-auto object-contain transition-transform duration-500 hover:scale-105"
+              className="h-20 md:h-24 w-auto object-contain"
             />
           </div>
-
           <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-blue-800 via-blue-600 to-sky-500 bg-clip-text text-transparent tracking-tight">
             DREAM BLUE LIBRARY
           </h1>
-
-          <p className="text-slate-500 text-sm font-medium flex items-center justify-center gap-1">
-            Please tap your ID card on the scanner
-          </p>
           <div className="text-slate-500 text-sm font-medium flex items-center justify-center gap-2">
             Please tap your ID card on the scanner
             <HandTapIcon className="w-5 h-5 text-blue-500" />
@@ -298,13 +341,12 @@ export default function HalamanAbsensi() {
             onChange={(e) => setInputID(e.target.value)}
             disabled={loading}
             placeholder="Scan / Type your ID..."
-            autoComplete="off" // Mencegah browser mikir keras mencari riwayat
-            autoCorrect="off" // Mencegah HP/Tablet mengoreksi otomatis
-            spellCheck="false" // Mencegah garis merah di bawah teks
-            autoFocus // Langsung fokus sejak halaman dimuat
-            className="w-full max-w-md bg-white/90 border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 rounded-2xl px-6 py-4 text-center font-mono text-xl tracking-widest outline-none text-slate-800 placeholder:text-slate-400 transition-all duration-300 shadow-inner hover:border-slate-300"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck="false"
+            autoFocus
+            className="w-full max-w-md bg-white border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 rounded-2xl px-6 py-4 text-center font-mono text-xl tracking-widest outline-none text-slate-800 placeholder:text-slate-400 transition-all duration-300 shadow-sm hover:border-slate-300"
           />
-
           <button
             type="submit"
             disabled={loading}
@@ -336,12 +378,7 @@ export default function HalamanAbsensi() {
             <div className="flex flex-col animate-in fade-in slide-in-from-bottom-3 duration-500">
               <div className="flex flex-col items-center justify-center mb-5">
                 <div className="flex items-center gap-1.5 opacity-90">
-                  <div className="flex items-center gap-1.5 opacity-90">
-                    <CrownIcon className="w-5 h-5 text-amber-500" />
-                    <span className="text-xs font-black text-amber-500 uppercase tracking-[0.25em] drop-shadow-sm mt-0.5">
-                      {logTerakhir.role} RANK
-                    </span>
-                  </div>
+                  <CrownIcon className="w-5 h-5 text-amber-500" />
                   <span className="text-xs font-black text-amber-500 uppercase tracking-[0.25em] drop-shadow-sm mt-0.5">
                     {logTerakhir.role} RANK
                   </span>
@@ -354,7 +391,7 @@ export default function HalamanAbsensi() {
                 </span>
               </div>
 
-              <div className="bg-white/80 backdrop-blur-md border border-white/50 rounded-2xl shadow-lg overflow-hidden">
+              <div className="bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg overflow-hidden">
                 <div className="flex justify-between items-center px-5 py-3 hover:bg-white/90 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center text-base font-bold text-blue-700 border border-blue-200 shadow-inner">

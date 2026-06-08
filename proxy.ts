@@ -13,12 +13,13 @@ export async function proxy(request: NextRequest) {
 
   // =========================================================
   // JALUR VIP (Boleh diakses TANPA Login)
-  // Mesin Scanner butuh absensi & cek libur, dan Admin butuh login.
+  // Tambahkan /api/auth/logout agar proses pembersihan token tidak terblokir saat expired
   // =========================================================
   const isPublicApi =
     path === "/api/auth/login" ||
+    path === "/api/auth/logout" || // 銆 SEKARANG AMAN: Logout bisa diakses kapan saja untuk bersihkan token
     path === "/api/absensi" ||
-    (path === "/api/libur" && request.method === "GET"); // Cek libur boleh, tapi tambah/hapus libur harus Admin
+    (path === "/api/libur" && request.method === "GET");
 
   const isProtectedApi = isApiRoute && !isPublicApi;
 
@@ -28,7 +29,6 @@ export async function proxy(request: NextRequest) {
   let isVerified = false;
   if (token) {
     try {
-      // Ambil kunci rahasia dari .env untuk memverifikasi token
       const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET);
       await jwtVerify(token, SECRET_KEY);
       isVerified = true;
@@ -42,12 +42,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // 🔥 SKENARIO 2 (BARU): Akses API Admin tanpa Token Valid
-  // Mencegah Hacker yang menggunakan aplikasi Postman/Insomnia
+  // SKENARIO 2: Akses API Admin tanpa Token Valid (Postman/Insomnia Blocker)
   if (isProtectedApi && !isVerified) {
     return NextResponse.json(
       { error: "Akses Ditolak: Anda tidak memiliki izin Admin." },
-      { status: 401 }, // 401 Unauthorized
+      { status: 401 },
     );
   }
 
@@ -56,11 +55,25 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin", request.url));
   }
 
-  // Lolos pemeriksaan, silakan lewat
-  return NextResponse.next();
+  // =========================================================
+  // 馃敵 OPTIMASI KIOSK: Tambah Anti-Cache Headers ke halaman /admin yang lolos verifikasi
+  // Mencegah browser menyimpan screenshot visual halaman admin saat tombol Back ditekan
+  // =========================================================
+  const response = NextResponse.next();
+
+  if (isAdminRoute) {
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+  }
+
+  return response;
 }
 
 export const config = {
-  // 🔥 PASTIKAN /api/ MASUK KE DALAM MATCHER AGAR DIPANTAU OLEH PROXY
+  // PASTIKAN /api/ MASUK KE DALAM MATCHER AGAR DIPANTAU OLEH PROXY
   matcher: ["/admin/:path*", "/login", "/api/:path*"],
 };

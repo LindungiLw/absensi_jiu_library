@@ -59,3 +59,19 @@ model PengaturanSesi {
   jam_mulai   String // Format "HH:mm" misal "08:00"
   jam_selesai String // Format "HH:mm" misal "11:59"
 }
+
+model PetugasKiosk {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  pin          String    // Menyimpan 6 digit PIN angka
+  lastOpenedAt DateTime? // Otomatis mencatat waktu terakhir stasiun dibuka
+}
+
+// RESERVED: Tabel untuk fitur OTP (Opsional - Bisa diaktifkan di masa depan)
+model OtpSession {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique // Satu akun admin hanya memiliki 1 kode aktif
+  code      String   // Menyimpan 6 digit kode OTP
+  expiresAt DateTime // Batas waktu validitas OTP
+  createdAt DateTime @default(now())
+}

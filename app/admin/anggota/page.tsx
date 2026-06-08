@@ -55,7 +55,13 @@ const PULAU_OPTIONS = [
 
 export default function ManajemenAnggota() {
   const [anggotaList, setAnggotaList] = useState<Anggota[]>([]);
-  const [loading, setLoading] = useState(false);
+
+  // 🔥 SEPARATED UX LOADING STATES
+  const [loadingList, setLoadingList] = useState(false);
+  const [submittingManual, setSubmittingManual] = useState(false);
+  const [uploadingExcel, setUploadingExcel] = useState(false);
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+
   const [notif, setNotif] = useState<{
     type: "success" | "error";
     msg: string;
@@ -78,6 +84,17 @@ export default function ManajemenAnggota() {
   const batchOptions = Array.from({ length: 5 }, (_, i) =>
     String(currentYear - i),
   );
+
+  // State Pengendali Open/Close Custom Dropdown Form Tambah
+  const [openRoleAdd, setOpenRoleAdd] = useState(false);
+  const [openJurusanAdd, setOpenJurusanAdd] = useState(false);
+  const [openNegaraAdd, setOpenNegaraAdd] = useState(false);
+  const [openPulauAdd, setOpenPulauAdd] = useState(false);
+
+  // State Pengendali Open/Close Custom Dropdown Modal Edit
+  const [openRoleEdit, setOpenRoleEdit] = useState(false);
+  const [openNegaraEdit, setOpenNegaraEdit] = useState(false);
+  const [openPulauEdit, setOpenPulauEdit] = useState(false);
 
   const [formManual, setFormManual] = useState({
     id_anggota: "",
@@ -102,7 +119,7 @@ export default function ManajemenAnggota() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setLoading(true);
+    setLoadingList(true);
     const timer = setTimeout(async () => {
       try {
         const roleQuery = activeTab.toLowerCase();
@@ -120,7 +137,7 @@ export default function ManajemenAnggota() {
       } catch (err) {
         setNotif({ type: "error", msg: "Koneksi server bermasalah." });
       } finally {
-        setLoading(false);
+        setLoadingList(false);
       }
     }, 400);
     return () => clearTimeout(timer);
@@ -142,7 +159,7 @@ export default function ManajemenAnggota() {
       setNotif({ type: "error", msg: "ID dan Nama tidak boleh kosong!" });
       return;
     }
-    setLoading(true);
+    setSubmittingManual(true);
     setNotif(null);
     try {
       const payload = {
@@ -173,13 +190,13 @@ export default function ManajemenAnggota() {
     } catch (err) {
       setNotif({ type: "error", msg: "Koneksi terputus." });
     } finally {
-      setLoading(false);
+      setSubmittingManual(false);
     }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmittingEdit(true);
     setNotif(null);
     try {
       const payload = {
@@ -202,7 +219,7 @@ export default function ManajemenAnggota() {
     } catch (err) {
       setNotif({ type: "error", msg: "Gagal menyimpan perubahan." });
     } finally {
-      setLoading(false);
+      setSubmittingEdit(false);
     }
   };
 
@@ -239,7 +256,7 @@ export default function ManajemenAnggota() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setLoading(true);
+    setUploadingExcel(true);
     setNotif(null);
     const reader = new FileReader();
 
@@ -277,7 +294,7 @@ export default function ManajemenAnggota() {
             type: "error",
             msg: "Data kosong. Pastikan kolom ID_ANGGOTA dan NAMA terisi di Excel!",
           });
-          setLoading(false);
+          setUploadingExcel(false);
           return;
         }
 
@@ -297,7 +314,7 @@ export default function ManajemenAnggota() {
       } catch (err) {
         setNotif({ type: "error", msg: "Gagal membaca format file Excel." });
       } finally {
-        setLoading(false);
+        setUploadingExcel(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     };
@@ -309,7 +326,7 @@ export default function ManajemenAnggota() {
       `Hapus data anggota "${nama}" beserta riwayat kunjungannya?`,
     );
     if (!confirmDelete) return;
-    setLoading(true);
+    setLoadingList(true); // Memicu loading eksklusif pada area tabel saja
     setNotif(null);
     try {
       const res = await fetch(`/api/anggota?id=${id}`, { method: "DELETE" });
@@ -319,11 +336,11 @@ export default function ManajemenAnggota() {
         setRefreshTrigger((prev) => prev + 1);
       } else {
         setNotif({ type: "error", msg: data.error });
+        setLoadingList(false);
       }
     } catch (err) {
       setNotif({ type: "error", msg: "Gagal menghapus data." });
-    } finally {
-      setLoading(false);
+      setLoadingList(false);
     }
   };
 
@@ -352,7 +369,7 @@ export default function ManajemenAnggota() {
         <div className="md:col-span-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
           <h2 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
             <UploadIcon className="w-4 h-4 text-blue-600" />
-            Import Data Massal
+            Pendaftaran Manual
           </h2>
           <form
             onSubmit={handleManualSubmit}
@@ -366,7 +383,7 @@ export default function ManajemenAnggota() {
               onChange={(e) =>
                 setFormManual({ ...formManual, id_anggota: e.target.value })
               }
-              className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500"
+              className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 transition-all hover:border-slate-400 shadow-sm"
             />
             <input
               type="text"
@@ -376,10 +393,11 @@ export default function ManajemenAnggota() {
               onChange={(e) =>
                 setFormManual({ ...formManual, nama: e.target.value })
               }
-              className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500"
+              className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 transition-all hover:border-slate-400 shadow-sm"
             />
-            <div className="space-y-1">
-              {/* Label dengan Ikon yang berubah otomatis */}
+
+            {/* 1. CUSTOM DROPDOWN: Role Akses */}
+            <div className="space-y-1 relative">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 px-1">
                 {formManual.role === "student" && (
                   <UserIcon className="w-3.5 h-3.5 text-blue-600" />
@@ -392,45 +410,77 @@ export default function ManajemenAnggota() {
                 )}
                 Role Akses
               </label>
-
-              {/* Select murni (tanpa elemen lain di dalamnya) */}
-              <select
-                value={formManual.role}
-                onChange={(e) =>
-                  setFormManual({
-                    ...formManual,
-                    role: e.target.value,
-                    jurusan:
-                      e.target.value === "staff" ? "" : formManual.jurusan,
-                    batch: e.target.value !== "student" ? "" : formManual.batch,
-                  })
-                }
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 text-slate-700 transition-all"
+              <button
+                type="button"
+                onClick={() => setOpenRoleAdd(!openRoleAdd)}
+                onBlur={() => setTimeout(() => setOpenRoleAdd(false), 200)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none text-slate-700 text-left flex justify-between items-center transition-all hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm"
               >
-                <option value="student">Student</option>
-                <option value="lecturer">Lecturer</option>
-                <option value="staff">Staff</option>
-              </select>
+                <span>
+                  {formManual.role.charAt(0).toUpperCase() +
+                    formManual.role.slice(1)}
+                </span>
+                <span className="text-slate-400 text-[10px]">▼</span>
+              </button>
+              {openRoleAdd && (
+                <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg py-1 overflow-hidden animate-in fade-in slide-in-from-top-1">
+                  {["student", "lecturer", "staff"].map((r) => (
+                    <li
+                      key={r}
+                      onClick={() => {
+                        setFormManual({
+                          ...formManual,
+                          role: r,
+                          jurusan: r === "staff" ? "" : formManual.jurusan,
+                          batch: r !== "student" ? "" : formManual.batch,
+                        });
+                        setOpenRoleAdd(false);
+                      }}
+                      className="px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-colors"
+                    >
+                      {r.charAt(0).toUpperCase() + r.slice(1)}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
+            {/* 2. CUSTOM DROPDOWN: Pilih Jurusan */}
             {formManual.role !== "staff" ? (
-              <select
-                required={formManual.role !== "staff"}
-                value={formManual.jurusan}
-                onChange={(e) =>
-                  setFormManual({ ...formManual, jurusan: e.target.value })
-                }
-                className={`bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 ${!formManual.jurusan ? "text-slate-400" : "text-slate-800"}`}
-              >
-                <option value="" disabled>
-                  Pilih Jurusan...
-                </option>
-                {JURUSAN_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+              <div className="relative flex flex-col justify-end">
+                <button
+                  type="button"
+                  onClick={() => setOpenJurusanAdd(!openJurusanAdd)}
+                  onBlur={() => setTimeout(() => setOpenJurusanAdd(false), 200)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none text-left flex justify-between items-center transition-all hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 h-[42px] shadow-sm"
+                >
+                  <span
+                    className={
+                      !formManual.jurusan ? "text-slate-400" : "text-slate-800"
+                    }
+                  >
+                    {JURUSAN_OPTIONS.find((o) => o.value === formManual.jurusan)
+                      ?.label || "Pilih Jurusan..."}
+                  </span>
+                  <span className="text-slate-400 text-[10px]">▼</span>
+                </button>
+                {openJurusanAdd && (
+                  <ul className="absolute z-50 w-full bottom-full mb-1 sm:top-full sm:bottom-auto sm:mt-1 bg-white border border-slate-200 rounded-xl shadow-lg py-1 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1">
+                    {JURUSAN_OPTIONS.map((opt) => (
+                      <li
+                        key={opt.value}
+                        onClick={() => {
+                          setFormManual({ ...formManual, jurusan: opt.value });
+                          setOpenJurusanAdd(false);
+                        }}
+                        className="px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-colors"
+                      >
+                        {opt.label}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             ) : (
               <div className="hidden md:block"></div>
             )}
@@ -447,7 +497,7 @@ export default function ManajemenAnggota() {
                   }
                   onFocus={() => setShowBatchAdd(true)}
                   onBlur={() => setTimeout(() => setShowBatchAdd(false), 200)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 text-slate-800 placeholder:text-slate-400"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 text-slate-800 placeholder:text-slate-400 transition-all hover:border-slate-400 shadow-sm"
                 />
                 {showBatchAdd && (
                   <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg py-1 overflow-hidden animate-in fade-in slide-in-from-top-1">
@@ -468,48 +518,95 @@ export default function ManajemenAnggota() {
               </div>
             )}
 
-            <select
-              value={formManual.negara}
-              onChange={(e) =>
-                setFormManual({
-                  ...formManual,
-                  negara: e.target.value,
-                  pulau: "",
-                })
-              }
-              className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 text-slate-800"
-            >
-              {NEGARA_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-
-            {formManual.negara === "ID" && (
-              <select
-                value={formManual.pulau}
-                onChange={(e) =>
-                  setFormManual({ ...formManual, pulau: e.target.value })
-                }
-                className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 text-slate-800"
+            {/* 3. CUSTOM DROPDOWN: Negara */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenNegaraAdd(!openNegaraAdd)}
+                onBlur={() => setTimeout(() => setOpenNegaraAdd(false), 200)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none text-left flex justify-between items-center transition-all hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-slate-800 shadow-sm"
               >
-                <option value="">-- Pilih Pulau / Region (Opsional) --</option>
-                {PULAU_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
+                <span>
+                  {
+                    NEGARA_OPTIONS.find((o) => o.value === formManual.negara)
+                      ?.label
+                  }
+                </span>
+                <span className="text-slate-400 text-[10px]">▼</span>
+              </button>
+              {openNegaraAdd && (
+                <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg py-1 overflow-hidden animate-in fade-in slide-in-from-top-1">
+                  {NEGARA_OPTIONS.map((opt) => (
+                    <li
+                      key={opt.value}
+                      onClick={() => {
+                        setFormManual({
+                          ...formManual,
+                          negara: opt.value,
+                          pulau: "",
+                        });
+                        setOpenNegaraAdd(false);
+                      }}
+                      className="px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-colors"
+                    >
+                      {opt.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* 4. CUSTOM DROPDOWN: Pulau */}
+            {formManual.negara === "ID" && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenPulauAdd(!openPulauAdd)}
+                  onBlur={() => setTimeout(() => setOpenPulauAdd(false), 200)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none text-left flex justify-between items-center transition-all hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-slate-800 shadow-sm"
+                >
+                  <span>
+                    {formManual.pulau ||
+                      "-- Pilih Pulau / Region (Opsional) --"}
+                  </span>
+                  <span className="text-slate-400 text-[10px]">▼</span>
+                </button>
+                {openPulauAdd && (
+                  <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg py-1 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1">
+                    <li
+                      onClick={() => {
+                        setFormManual({ ...formManual, pulau: "" });
+                        setOpenPulauAdd(false);
+                      }}
+                      className="px-4 py-2 text-sm text-slate-400 hover:bg-slate-50 cursor-pointer transition-colors text-left"
+                    >
+                      -- Pilih Pulau / Region (Opsional) --
+                    </li>
+                    {PULAU_OPTIONS.map((opt) => (
+                      <li
+                        key={opt}
+                        onClick={() => {
+                          setFormManual({ ...formManual, pulau: opt });
+                          setOpenPulauAdd(false);
+                        }}
+                        className="px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-colors text-left"
+                      >
+                        {opt}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
 
+            {/* 🔥 BUTTON SIMPAN MANUAL: Diisolasi memakai submittingManual */}
             <div className="md:col-span-2 flex justify-end mt-1">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={submittingManual}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-50"
               >
-                + Simpan Data
+                {submittingManual ? "Menyimpan..." : "+ Simpan Data"}
               </button>
             </div>
           </form>
@@ -532,6 +629,7 @@ export default function ManajemenAnggota() {
               .
             </p>
           </div>
+          {/* 🔥 BUTTON EXCEL UPLOAD: Diisolasi memakai uploadingExcel */}
           <div className="space-y-2 relative z-10">
             <button
               onClick={handleDownloadTemplate}
@@ -549,10 +647,10 @@ export default function ManajemenAnggota() {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={loading}
+              disabled={uploadingExcel}
               className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {uploadingExcel ? (
                 "Memproses..."
               ) : (
                 <>
@@ -603,6 +701,7 @@ export default function ManajemenAnggota() {
             </div>
           </div>
 
+          {/* 🔥 AREA TABEL DATA UTAMA: Diisolasi memakai loadingList */}
           <div className="overflow-y-auto max-h-[calc(100vh-350px)] border-b border-slate-200">
             <table className="w-full text-left text-sm whitespace-nowrap relative">
               <thead className="bg-white sticky top-0 z-20 shadow-sm">
@@ -616,13 +715,13 @@ export default function ManajemenAnggota() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {loading && anggotaList.length === 0 ? (
+                {loadingList && anggotaList.length === 0 ? (
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-6 py-8 text-center text-slate-500 text-xs"
+                      className="px-6 py-8 text-center text-slate-500 text-xs animate-pulse font-medium"
                     >
-                      Memuat data...
+                      Memuat data database...
                     </td>
                   </tr>
                 ) : anggotaList.length === 0 ? (
@@ -696,10 +795,9 @@ export default function ManajemenAnggota() {
           </div>
 
           {/* =========================================================
-              🔥 FOOTER TABEL: PAGINATION & TOTAL DATA DITENGAH
+              🔥 FOOTER TABEL: PAGINATION Menggunakan loadingList
               ========================================================= */}
           <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-slate-200 bg-slate-50 gap-4 sm:gap-0">
-            {/* 1. KIRI: Info Halaman */}
             <div className="flex-1 flex justify-start">
               <span className="text-xs text-slate-500 font-medium bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
                 Halaman <strong className="text-blue-700">{currentPage}</strong>{" "}
@@ -707,7 +805,6 @@ export default function ManajemenAnggota() {
               </span>
             </div>
 
-            {/* 2. TENGAH: Info Total Data Aktif */}
             <div className="flex-1 flex justify-center">
               <div className="inline-flex items-center gap-2 bg-white px-4 py-1.5 rounded-lg border border-slate-200 shadow-sm text-xs font-bold text-slate-600 tracking-wide">
                 Total
@@ -721,11 +818,10 @@ export default function ManajemenAnggota() {
               </div>
             </div>
 
-            {/* 3. KANAN: Tombol Prev / Next */}
             <div className="flex-1 flex justify-end gap-2">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1 || loading}
+                disabled={currentPage === 1 || loadingList}
                 className="px-4 py-1.5 text-xs font-bold bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 transition-all shadow-sm"
               >
                 &larr; Prev
@@ -735,7 +831,7 @@ export default function ManajemenAnggota() {
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
                 disabled={
-                  currentPage === totalPages || totalPages === 0 || loading
+                  currentPage === totalPages || totalPages === 0 || loadingList
                 }
                 className="px-4 py-1.5 text-xs font-bold bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 transition-all shadow-sm"
               >
@@ -755,6 +851,7 @@ export default function ManajemenAnggota() {
                 Edit Data Anggota
               </h3>
               <button
+                type="button"
                 onClick={() => setEditModalOpen(false)}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all"
                 title="Tutup"
@@ -785,32 +882,52 @@ export default function ManajemenAnggota() {
                   onChange={(e) =>
                     setFormEdit({ ...formEdit, nama: e.target.value })
                   }
-                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 text-slate-800"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 text-slate-800 transition-all hover:border-slate-400 shadow-sm"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
+                {/* 5. CUSTOM DROPDOWN: Role (Modal) */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">
                     Role
                   </label>
-                  <select
-                    value={formEdit.role}
-                    onChange={(e) =>
-                      setFormEdit({
-                        ...formEdit,
-                        role: e.target.value,
-                        jurusan:
-                          e.target.value === "staff" ? "" : formEdit.jurusan,
-                        batch:
-                          e.target.value !== "student" ? "" : formEdit.batch,
-                      })
-                    }
-                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 text-slate-800"
-                  >
-                    <option value="student">Student</option>
-                    <option value="lecturer">Lecturer</option>
-                    <option value="staff">Staff</option>
-                  </select>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpenRoleEdit(!openRoleEdit)}
+                      onBlur={() =>
+                        setTimeout(() => setOpenRoleEdit(false), 200)
+                      }
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none text-left flex justify-between items-center transition-all hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-slate-800 shadow-sm"
+                    >
+                      <span>
+                        {formEdit.role.charAt(0).toUpperCase() +
+                          formEdit.role.slice(1)}
+                      </span>
+                      <span className="text-slate-400 text-[10px]">▼</span>
+                    </button>
+                    {openRoleEdit && (
+                      <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg py-1 overflow-hidden animate-in fade-in slide-in-from-top-1">
+                        {["student", "lecturer", "staff"].map((r) => (
+                          <li
+                            key={r}
+                            onClick={() => {
+                              setFormEdit({
+                                ...formEdit,
+                                role: r,
+                                jurusan: r === "staff" ? "" : formEdit.jurusan,
+                                batch: r !== "student" ? "" : formEdit.batch,
+                              });
+                              setOpenRoleEdit(false);
+                            }}
+                            className="px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-colors"
+                          >
+                            {r.charAt(0).toUpperCase() + r.slice(1)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">
@@ -829,7 +946,7 @@ export default function ManajemenAnggota() {
                       onBlur={() =>
                         setTimeout(() => setShowBatchEdit(false), 200)
                       }
-                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 text-slate-800 disabled:bg-slate-100"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 text-slate-800 disabled:bg-slate-100 transition-all hover:border-slate-400 shadow-sm"
                     />
                     {showBatchEdit && formEdit.role === "student" && (
                       <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg py-1 overflow-hidden animate-in fade-in slide-in-from-top-1">
@@ -852,47 +969,96 @@ export default function ManajemenAnggota() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                {/* 6. CUSTOM DROPDOWN: Negara (Modal) */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">
                     Negara
                   </label>
-                  <select
-                    value={formEdit.negara || "ID"}
-                    onChange={(e) =>
-                      setFormEdit({
-                        ...formEdit,
-                        negara: e.target.value,
-                        pulau: "",
-                      })
-                    }
-                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 text-slate-800"
-                  >
-                    {NEGARA_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpenNegaraEdit(!openNegaraEdit)}
+                      onBlur={() =>
+                        setTimeout(() => setOpenNegaraEdit(false), 200)
+                      }
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none text-left flex justify-between items-center transition-all hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-slate-800 shadow-sm"
+                    >
+                      <span>
+                        {
+                          NEGARA_OPTIONS.find(
+                            (o) => o.value === (formEdit.negara || "ID"),
+                          )?.label
+                        }
+                      </span>
+                      <span className="text-slate-400 text-[10px]">▼</span>
+                    </button>
+                    {openNegaraEdit && (
+                      <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg py-1 overflow-hidden animate-in fade-in slide-in-from-top-1">
+                        {NEGARA_OPTIONS.map((opt) => (
+                          <li
+                            key={opt.value}
+                            onClick={() => {
+                              setFormEdit({
+                                ...formEdit,
+                                negara: opt.value,
+                                pulau: "",
+                              });
+                              setOpenNegaraEdit(false);
+                            }}
+                            className="px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-colors"
+                          >
+                            {opt.label}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
+
+                {/* 7. CUSTOM DROPDOWN: Pulau (Modal) */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">
                     Pulau (ID)
                   </label>
-                  <select
-                    disabled={formEdit.negara !== "ID"}
-                    value={formEdit.pulau || ""}
-                    onChange={(e) =>
-                      setFormEdit({ ...formEdit, pulau: e.target.value })
-                    }
-                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 text-slate-800 disabled:bg-slate-100"
-                  >
-                    <option value="">-- Kosong --</option>
-                    {PULAU_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      disabled={formEdit.negara !== "ID"}
+                      onClick={() => setOpenPulauEdit(!openPulauEdit)}
+                      onBlur={() =>
+                        setTimeout(() => setOpenPulauEdit(false), 200)
+                      }
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none text-left flex justify-between items-center transition-all hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-slate-800 disabled:bg-slate-100 disabled:cursor-not-allowed shadow-sm"
+                    >
+                      <span>{formEdit.pulau || "-- Kosong --"}</span>
+                      <span className="text-slate-400 text-[10px]">▼</span>
+                    </button>
+                    {openPulauEdit && formEdit.negara === "ID" && (
+                      <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg py-1 max-h-40 overflow-y-auto animate-in fade-in slide-in-from-top-1">
+                        <li
+                          onClick={() => {
+                            setFormEdit({ ...formEdit, pulau: "" });
+                            setOpenPulauEdit(false);
+                          }}
+                          className="px-4 py-2 text-sm text-slate-400 hover:bg-slate-50 cursor-pointer transition-colors text-left"
+                        >
+                          -- Kosong --
+                        </li>
+                        {PULAU_OPTIONS.map((opt) => (
+                          <li
+                            key={opt}
+                            onClick={() => {
+                              setFormEdit({ ...formEdit, pulau: opt });
+                              setOpenPulauEdit(false);
+                            }}
+                            className="px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-colors text-left"
+                          >
+                            {opt}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -906,10 +1072,10 @@ export default function ManajemenAnggota() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={submittingEdit}
                   className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-50"
                 >
-                  Simpan Perubahan
+                  {submittingEdit ? "Menyimpan..." : "Simpan Perubahan"}
                 </button>
               </div>
             </form>
