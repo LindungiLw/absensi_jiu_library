@@ -8,35 +8,40 @@ datasource db {
 }
 
 model Anggota {
-  id_anggota  String      @id @db.VarChar(50) // Berlaku universal untuk NIM, NIDN, atau ID Staff
-  nama        String      @db.VarChar(255)
-  role        String      @db.VarChar(20)     // Isinya nanti: "student", "lecturer", atau "staff"
-  jurusan     String?     @db.VarChar(100)    // Opsional: Untuk student & lecturer
-  batch       String?     @db.VarChar(10)     // Opsional: Hanya untuk student (misal: "2023")
+  id_anggota      String      @id @db.VarChar(50)
+  nama            String      @db.VarChar(255)
+  role            String      @db.VarChar(20)    
+  jurusan         String?     @db.VarChar(100)    
+  batch           String?     @db.VarChar(10)   
   
-  negara     String?     @default("ID") // ID, KR, JP, AF, dll
-  pulau      String?     // Jawa, Sumatera, Kalimantan, dll (Khusus ID)
+  negara         String?     @default("ID") 
+  pulau          String?    
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   total_kunjungan Int         @default(0)
-
-  // Relasi ke log kehadiran
-  kehadiran   Kehadiran[]
-
-  @@map("anggota") // Nama tabel di MySQL Hostinger nanti jadi "anggota"
+  kehadiran       Kehadiran[]
+  
+  // Ini membuat query menghitung total Mahasiswa/Dosen 
+  @@index([role])
+  @@index([nama])
+  @@map("anggota") // Nama tabel di MySQL nanti jadi "anggota"
 }
 
 model Kehadiran {
   id          Int      @id @default(autoincrement())
   id_anggota  String   @db.VarChar(50)
   waktu       DateTime @default(now())
-  sesi        String   @db.VarChar(20) // "Pagi", "Siang", "Malam", "Luar Jam"
-
+  sesi        String   @db.VarChar(20) 
   tanggal    String
-  // Tali pengikat relasi ke tabel Anggota
+
   anggota     Anggota  @relation(fields: [id_anggota], references: [id_anggota], onDelete: Cascade)
+
+  // TAMBAHAN INDEX UNTUK MENCARI TANGGAL & ID DENGAN KILAT
+  // Ini membuat query pembuatan Grafik di Dashboard anti-lemot
+  @@index([tanggal])
+  @@index([id_anggota])
 
   @@unique([id_anggota, sesi, tanggal])
   @@map("kehadiran")

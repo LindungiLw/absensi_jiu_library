@@ -2,6 +2,16 @@
 
 import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
+import {
+  UserIcon,
+  GradCapIcon,
+  BriefcaseIcon,
+  UploadIcon,
+  DownloadIcon,
+  TrashIcon,
+  EditIcon,
+  XIcon,
+} from "../../components/icons/LibraryIcons";
 
 interface Anggota {
   id_anggota: string;
@@ -54,9 +64,13 @@ export default function ManajemenAnggota() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("Semua");
+
+  const [activeTab, setActiveTab] = useState("Student");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const LIMIT = 50;
+
+  // State untuk menyimpan data statistik total
+  const [stats, setStats] = useState({ student: 0, lecturer: 0, staff: 0 });
 
   const [showBatchAdd, setShowBatchAdd] = useState(false);
   const [showBatchEdit, setShowBatchEdit] = useState(false);
@@ -91,7 +105,7 @@ export default function ManajemenAnggota() {
     setLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const roleQuery = activeTab === "Semua" ? "" : activeTab.toLowerCase();
+        const roleQuery = activeTab.toLowerCase();
         const res = await fetch(
           `/api/anggota?page=${currentPage}&limit=${LIMIT}&search=${searchQuery}&role=${roleQuery}`,
         );
@@ -99,6 +113,9 @@ export default function ManajemenAnggota() {
         if (json.success) {
           setAnggotaList(json.data);
           setTotalPages(json.meta.totalPages || 1);
+          if (json.meta.stats) {
+            setStats(json.meta.stats);
+          }
         }
       } catch (err) {
         setNotif({ type: "error", msg: "Koneksi server bermasalah." });
@@ -113,6 +130,7 @@ export default function ManajemenAnggota() {
     setActiveTab(tab);
     setCurrentPage(1);
   };
+
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
     setCurrentPage(1);
@@ -197,27 +215,20 @@ export default function ManajemenAnggota() {
     setEditModalOpen(true);
   };
 
-  // =========================================================================
-  // 🔥 UPGRADE 1: DOWNLOAD TEMPLATE (HANYA HEADER KOSONG, TANPA DUMMY DATA)
-  // =========================================================================
   const handleDownloadTemplate = () => {
     const wb = XLSX.utils.book_new();
-
-    // 1. Sheet Mahasiswa (Hanya Header)
     const wsStudent = XLSX.utils.aoa_to_sheet([
       ["ID_ANGGOTA", "NAMA", "JURUSAN", "BATCH"],
     ]);
     wsStudent["!cols"] = [{ wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, wsStudent, "Mahasiswa");
 
-    // 2. Sheet Dosen (Hanya Header)
     const wsLecturer = XLSX.utils.aoa_to_sheet([
       ["ID_ANGGOTA", "NAMA", "JURUSAN"],
     ]);
     wsLecturer["!cols"] = [{ wch: 15 }, { wch: 30 }, { wch: 15 }];
     XLSX.utils.book_append_sheet(wb, wsLecturer, "Dosen");
 
-    // 3. Sheet Staff (Hanya Header)
     const wsStaff = XLSX.utils.aoa_to_sheet([["ID_ANGGOTA", "NAMA"]]);
     wsStaff["!cols"] = [{ wch: 15 }, { wch: 30 }];
     XLSX.utils.book_append_sheet(wb, wsStaff, "Staff");
@@ -225,9 +236,6 @@ export default function ManajemenAnggota() {
     XLSX.writeFile(wb, "Template_Import_Anggota_JIU.xlsx");
   };
 
-  // =========================================================================
-  // 🔥 UPGRADE 2: BACA PURE DARI EXCEL (TANPA DATA STATIC TAMBAHAN)
-  // =========================================================================
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -244,23 +252,18 @@ export default function ManajemenAnggota() {
         wb.SheetNames.forEach((sheetName) => {
           const ws = wb.Sheets[sheetName];
           const rawData = XLSX.utils.sheet_to_json(ws, { raw: false }) as any[];
-
-          // Tetap gunakan tab sheet untuk membedakan Role secara otomatis
           let roleToAssign = "student";
-          if (sheetName.toLowerCase().includes("dosen")) {
+          if (sheetName.toLowerCase().includes("dosen"))
             roleToAssign = "lecturer";
-          } else if (sheetName.toLowerCase().includes("staff")) {
+          else if (sheetName.toLowerCase().includes("staff"))
             roleToAssign = "staff";
-          }
 
           rawData.forEach((row) => {
-            // 🔥 HANYA ambil data jika ID_ANGGOTA dan NAMA benar-benar terisi di Excel
             if (row.ID_ANGGOTA && row.NAMA) {
               const cleanId = String(row.ID_ANGGOTA).replace(/^'/, "").trim();
-
               payloadExcel.push({
                 id_anggota: cleanId,
-                nama: String(row.NAMA).trim(), // 100% PURE dari ketikanmu di Excel
+                nama: String(row.NAMA).trim(),
                 role: roleToAssign,
                 jurusan: row.JURUSAN ? String(row.JURUSAN).trim() : null,
                 batch: row.BATCH ? String(row.BATCH).trim() : null,
@@ -347,8 +350,9 @@ export default function ManajemenAnggota() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Form Tambah Manual */}
         <div className="md:col-span-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <h2 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-            ✍️ Pendaftaran Manual
+          <h2 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
+            <UploadIcon className="w-4 h-4 text-blue-600" />
+            Import Data Massal
           </h2>
           <form
             onSubmit={handleManualSubmit}
@@ -374,22 +378,40 @@ export default function ManajemenAnggota() {
               }
               className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500"
             />
-            <select
-              value={formManual.role}
-              onChange={(e) =>
-                setFormManual({
-                  ...formManual,
-                  role: e.target.value,
-                  jurusan: e.target.value === "staff" ? "" : formManual.jurusan,
-                  batch: e.target.value !== "student" ? "" : formManual.batch,
-                })
-              }
-              className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 text-slate-700"
-            >
-              <option value="student">🎓 Student</option>
-              <option value="lecturer">👨‍🏫 Lecturer</option>
-              <option value="staff">💼 Staff</option>
-            </select>
+            <div className="space-y-1">
+              {/* Label dengan Ikon yang berubah otomatis */}
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 px-1">
+                {formManual.role === "student" && (
+                  <UserIcon className="w-3.5 h-3.5 text-blue-600" />
+                )}
+                {formManual.role === "lecturer" && (
+                  <GradCapIcon className="w-3.5 h-3.5 text-amber-600" />
+                )}
+                {formManual.role === "staff" && (
+                  <BriefcaseIcon className="w-3.5 h-3.5 text-purple-600" />
+                )}
+                Role Akses
+              </label>
+
+              {/* Select murni (tanpa elemen lain di dalamnya) */}
+              <select
+                value={formManual.role}
+                onChange={(e) =>
+                  setFormManual({
+                    ...formManual,
+                    role: e.target.value,
+                    jurusan:
+                      e.target.value === "staff" ? "" : formManual.jurusan,
+                    batch: e.target.value !== "student" ? "" : formManual.batch,
+                  })
+                }
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 text-slate-700 transition-all"
+              >
+                <option value="student">Student</option>
+                <option value="lecturer">Lecturer</option>
+                <option value="staff">Staff</option>
+              </select>
+            </div>
 
             {formManual.role !== "staff" ? (
               <select
@@ -493,30 +515,30 @@ export default function ManajemenAnggota() {
           </form>
         </div>
 
-        {/* =========================================================================
-            🔥 PERINGATAN UI "TEXT" AGAR ANGKA 0 DI EXCEL TIDAK HILANG 
-            ========================================================================= */}
+        {/* Kotak Import Excel */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-full blur-[30px] pointer-events-none"></div>
           <div>
             <h2 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-              🚀 Import Data Massal
+              <UploadIcon className="w-4 h-4 text-blue-600" />
+              Import Data Massal
             </h2>
             <p className="text-[11px] text-slate-500 leading-relaxed mb-4 relative z-10">
               Upload data Mahasiswa, Dosen, dan Staff sekaligus! <br />
               <span className="text-rose-600 font-bold block mt-1">
                 PENTING:
               </span>{" "}
-              Pastikan kolom ID_ANGGOTA di Excel formatnya adalah{" "}
-              <strong>"Text"</strong> agar angka 0 di depan NIM tidak terhapus.
+              Pastikan kolom ID_ANGGOTA formatnya adalah <strong>"Text"</strong>
+              .
             </p>
           </div>
           <div className="space-y-2 relative z-10">
             <button
               onClick={handleDownloadTemplate}
-              className="w-full px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-300 rounded-xl text-xs font-bold transition-all"
+              className="w-full px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
             >
-              📥 1. Download Template (3 Sheet)
+              <DownloadIcon className="w-3.5 h-3.5" />
+              1. Download Template (3 Sheet)
             </button>
             <input
               type="file"
@@ -528,175 +550,198 @@ export default function ManajemenAnggota() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={loading}
-              className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-50"
+              className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? "Memproses..." : "📤 2. Upload Excel"}
+              {loading ? (
+                "Memproses..."
+              ) : (
+                <>
+                  <UploadIcon className="w-4 h-4" />
+                  2. Upload Excel
+                </>
+              )}
             </button>
           </div>
         </div>
       </div>
 
-      {/* DATA TABEL AREA */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-        <div className="flex flex-col sm:flex-row justify-between items-center border-b border-slate-200 bg-slate-50 p-2 gap-3">
-          <div className="flex overflow-x-auto w-full sm:w-auto">
-            {["Semua", "Student", "Lecturer", "Staff"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => handleTabChange(tab)}
-                className={`px-4 py-2 text-xs font-bold tracking-wide whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? "text-blue-700 bg-blue-100/50" : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"}`}
-              >
-                {tab === "Semua"
-                  ? "📂 Semua Data"
-                  : tab === "Student"
-                    ? "🎓 Mahasiswa"
+      <div className="space-y-3">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+          <div className="flex flex-col sm:flex-row justify-between items-center border-b border-slate-200 bg-slate-50 p-2 gap-3">
+            <div className="flex overflow-x-auto w-full sm:w-auto">
+              {["Student", "Lecturer", "Staff"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => handleTabChange(tab)}
+                  className={`px-4 py-2 text-xs font-bold tracking-wide whitespace-nowrap transition-colors rounded-lg flex items-center gap-2 ${activeTab === tab ? "text-blue-700 bg-blue-100/50 shadow-sm" : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"}`}
+                >
+                  {tab === "Student" && <UserIcon className="w-3.5 h-3.5" />}
+                  {tab === "Lecturer" && (
+                    <GradCapIcon className="w-3.5 h-3.5" />
+                  )}
+                  {tab === "Staff" && <BriefcaseIcon className="w-3.5 h-3.5" />}
+                  {tab === "Student"
+                    ? "Mahasiswa"
                     : tab === "Lecturer"
-                      ? "👨‍🏫 Dosen"
-                      : "💼 Staff"}
-              </button>
-            ))}
+                      ? "Dosen"
+                      : "Staff"}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-full sm:w-64 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                🔍
+              </span>
+              <input
+                type="text"
+                placeholder="Cari ID, Nama..."
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
+              />
+            </div>
           </div>
 
-          <div className="w-full sm:w-64 relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-              🔍
-            </span>
-            <input
-              type="text"
-              placeholder="Cari ID, Nama, atau Batch..."
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
-            />
-          </div>
-        </div>
-
-        <div className="overflow-y-auto max-h-[calc(100vh-300px)] border-b border-slate-200">
-          <table className="w-full text-left text-sm whitespace-nowrap relative">
-            <thead className="bg-white sticky top-0 z-20 shadow-sm">
-              <tr className="text-slate-400 font-mono text-xs uppercase tracking-wider border-b border-slate-200">
-                <th className="px-6 py-4 font-semibold">No</th>
-                <th className="px-6 py-4 font-semibold">ID Anggota</th>
-                <th className="px-6 py-4 font-semibold">Nama Lengkap</th>
-                {activeTab === "Semua" && (
-                  <th className="px-6 py-4 font-semibold">Role</th>
-                )}
-                <th className="px-6 py-4 font-semibold text-center">
-                  Total Absensi
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading && anggotaList.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-8 text-center text-slate-500 text-xs"
-                  >
-                    Memuat data...
-                  </td>
+          <div className="overflow-y-auto max-h-[calc(100vh-350px)] border-b border-slate-200">
+            <table className="w-full text-left text-sm whitespace-nowrap relative">
+              <thead className="bg-white sticky top-0 z-20 shadow-sm">
+                <tr className="text-slate-400 font-mono text-xs uppercase tracking-wider border-b border-slate-200">
+                  <th className="px-6 py-4 font-semibold">No</th>
+                  <th className="px-6 py-4 font-semibold">ID Anggota</th>
+                  <th className="px-6 py-4 font-semibold">Nama Lengkap</th>
+                  <th className="px-6 py-4 font-semibold text-center">
+                    Total Absensi
+                  </th>
                 </tr>
-              ) : anggotaList.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-8 text-center text-slate-400 text-xs italic"
-                  >
-                    {searchQuery
-                      ? "Data tidak ditemukan."
-                      : "Belum ada data anggota di kategori ini."}
-                  </td>
-                </tr>
-              ) : (
-                anggotaList.map((anggota, index) => (
-                  <tr
-                    key={anggota.id_anggota}
-                    className="hover:bg-slate-50 transition-colors group"
-                  >
-                    <td className="px-6 py-3 text-slate-500 font-mono text-xs">
-                      {(currentPage - 1) * LIMIT + index + 1}
-                    </td>
-                    <td className="px-6 py-3 font-mono text-blue-600 font-medium text-xs">
-                      {anggota.id_anggota}
-                    </td>
-                    <td className="px-6 py-3 font-bold text-slate-800 text-xs">
-                      {anggota.nama}
-                      <span className="ml-2 text-[10px]">
-                        {anggota.negara === "KR"
-                          ? "🇰🇷"
-                          : anggota.negara === "JP"
-                            ? "🇯🇵"
-                            : anggota.negara === "AF"
-                              ? "🇦🇫"
-                              : "🇮🇩"}
-                      </span>
-                    </td>
-                    {activeTab === "Semua" && (
-                      <td className="px-6 py-3">
-                        <span
-                          className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${anggota.role === "student" ? "bg-blue-50 text-blue-600 border-blue-200" : anggota.role === "lecturer" ? "bg-amber-50 text-amber-600 border-amber-200" : "bg-purple-50 text-purple-600 border-purple-200"}`}
-                        >
-                          {anggota.role}
-                        </span>
-                      </td>
-                    )}
-                    <td className="px-6 py-3 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="bg-slate-100 text-slate-600 px-3 py-1 rounded-md font-mono text-xs font-bold border border-slate-200">
-                          {anggota.total_absensi || 0}{" "}
-                          <span className="text-[9px] font-sans font-normal ml-1">
-                            Kunjungan
-                          </span>
-                        </div>
-                        <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => openEditModal(anggota)}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
-                            title="Edit Data"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleDelete(anggota.id_anggota, anggota.nama)
-                            }
-                            className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors"
-                            title="Hapus Data"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading && anggotaList.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="px-6 py-8 text-center text-slate-500 text-xs"
+                    >
+                      Memuat data...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : anggotaList.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="px-6 py-8 text-center text-slate-400 text-xs italic"
+                    >
+                      {searchQuery
+                        ? "Data tidak ditemukan."
+                        : `Belum ada data ${activeTab} terdaftar.`}
+                    </td>
+                  </tr>
+                ) : (
+                  anggotaList.map((anggota, index) => (
+                    <tr
+                      key={anggota.id_anggota}
+                      className="hover:bg-slate-50 transition-colors group"
+                    >
+                      <td className="px-6 py-3 text-slate-500 font-mono text-xs">
+                        {(currentPage - 1) * LIMIT + index + 1}
+                      </td>
+                      <td className="px-6 py-3 font-mono text-blue-600 font-medium text-xs">
+                        {anggota.id_anggota}
+                      </td>
+                      <td className="px-6 py-3 font-bold text-slate-800 text-xs">
+                        {anggota.nama}
+                        <span className="ml-2 text-[10px]">
+                          {anggota.negara === "KR"
+                            ? "🇰🇷"
+                            : anggota.negara === "JP"
+                              ? "🇯🇵"
+                              : anggota.negara === "AF"
+                                ? "🇦🇫"
+                                : "🇮🇩"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="bg-slate-100 text-slate-600 px-3 py-1 rounded-md font-mono text-xs font-bold border border-slate-200">
+                            {anggota.total_absensi || 0}{" "}
+                            <span className="text-[9px] font-sans font-normal ml-1">
+                              Kunjungan
+                            </span>
+                          </div>
+                          <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => openEditModal(anggota)}
+                              className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                              title="Edit Data"
+                            >
+                              <EditIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleDelete(anggota.id_anggota, anggota.nama)
+                              }
+                              className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors"
+                              title="Hapus Data"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        <div className="flex justify-between items-center p-4 border-t border-slate-200 bg-slate-50">
-          <span className="text-xs text-slate-500 font-medium">
-            Halaman <strong className="text-blue-700">{currentPage}</strong>{" "}
-            dari {totalPages}
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1 || loading}
-              className="px-4 py-2 text-xs font-bold bg-white border border-slate-300 text-slate-600 rounded-xl hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 transition-colors"
-            >
-              &larr; Prev
-            </button>
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={
-                currentPage === totalPages || totalPages === 0 || loading
-              }
-              className="px-4 py-2 text-xs font-bold bg-white border border-slate-300 text-slate-600 rounded-xl hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 transition-colors"
-            >
-              Next &rarr;
-            </button>
+          {/* =========================================================
+              🔥 FOOTER TABEL: PAGINATION & TOTAL DATA DITENGAH
+              ========================================================= */}
+          <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-slate-200 bg-slate-50 gap-4 sm:gap-0">
+            {/* 1. KIRI: Info Halaman */}
+            <div className="flex-1 flex justify-start">
+              <span className="text-xs text-slate-500 font-medium bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                Halaman <strong className="text-blue-700">{currentPage}</strong>{" "}
+                dari {totalPages}
+              </span>
+            </div>
+
+            {/* 2. TENGAH: Info Total Data Aktif */}
+            <div className="flex-1 flex justify-center">
+              <div className="inline-flex items-center gap-2 bg-white px-4 py-1.5 rounded-lg border border-slate-200 shadow-sm text-xs font-bold text-slate-600 tracking-wide">
+                Total
+                <span className="bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-md border border-blue-100 text-sm">
+                  {activeTab === "Student"
+                    ? stats.student
+                    : activeTab === "Lecturer"
+                      ? stats.lecturer
+                      : stats.staff}
+                </span>
+              </div>
+            </div>
+
+            {/* 3. KANAN: Tombol Prev / Next */}
+            <div className="flex-1 flex justify-end gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || loading}
+                className="px-4 py-1.5 text-xs font-bold bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 transition-all shadow-sm"
+              >
+                &larr; Prev
+              </button>
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={
+                  currentPage === totalPages || totalPages === 0 || loading
+                }
+                className="px-4 py-1.5 text-xs font-bold bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 transition-all shadow-sm"
+              >
+                Next &rarr;
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -711,9 +756,10 @@ export default function ManajemenAnggota() {
               </h3>
               <button
                 onClick={() => setEditModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all"
+                title="Tutup"
               >
-                ✖
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleEditSubmit} className="space-y-4">

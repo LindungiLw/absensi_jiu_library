@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  ChartIcon,
+  UsersIcon,
+  ReportIcon,
+} from "../components/icons/LibraryIcons";
 
 export default function AdminLayout({
   children,
@@ -13,9 +18,21 @@ export default function AdminLayout({
 
   // Daftar Menu Navigasi
   const navItems = [
-    { name: "Manajemen Absensi", href: "/admin", icon: "📊" },
-    { name: "Data Anggota", href: "/admin/anggota", icon: "👥" },
-    { name: "Laporan Rekap", href: "/admin/laporan", icon: "📑" },
+    {
+      name: "Manajemen Absensi",
+      href: "/admin",
+      icon: <ChartIcon className="w-5 h-5" />,
+    },
+    {
+      name: "Data Anggota",
+      href: "/admin/anggota",
+      icon: <UsersIcon className="w-5 h-5" />,
+    },
+    {
+      name: "Laporan Rekap",
+      href: "/admin/laporan",
+      icon: <ReportIcon className="w-5 h-5" />,
+    },
   ];
 
   // 🔥 FUNGSI LOGOUT YANG MEMANGGIL API PENGHANCUR COOKIE

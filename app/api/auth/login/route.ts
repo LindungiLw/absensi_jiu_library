@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const isPasswordValid = password === TRUE_PASSWORD;
 
     if (!isEmailValid || !isPasswordValid) {
-      // 🔥 PESAN DISAMARKAN: Jangan beri tahu hacker apakah email atau password-nya yang salah
+      //  PESAN DISAMARKAN: Jangan beri tahu hacker apakah email atau password-nya yang salah
       return NextResponse.json(
         { error: "Kredensial tidak valid atau akses ditolak." },
         { status: 401 },

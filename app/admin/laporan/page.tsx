@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { generateCustomExcel } from "../../admin/lib/excel-utils";
+import {
+  CalendarOffIcon,
+  ClockIcon,
+  DownloadIcon,
+} from "@/app/components/icons/LibraryIcons";
 
 export default function LaporanAbsensi() {
   const [loading, setLoading] = useState(true);
@@ -253,7 +258,14 @@ export default function LaporanAbsensi() {
             disabled={isExporting || loading}
             className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-2"
           >
-            {isExporting ? "Memproses..." : "📥 Unduh Excel"}
+            {isExporting ? (
+              "Memproses..."
+            ) : (
+              <>
+                <DownloadIcon className="w-4 h-4" />
+                Unduh Excel
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -265,7 +277,8 @@ export default function LaporanAbsensi() {
           <div className="bg-white border border-rose-200 rounded-2xl shadow-sm flex flex-col flex-1 overflow-hidden">
             <div className="p-3 border-b border-rose-100 bg-rose-50">
               <h2 className="text-xs font-bold text-rose-700 flex items-center gap-2">
-                ⛔ Pengaturan Hari Libur
+                <CalendarOffIcon className="w-4 h-4" />
+                Pengaturan Hari Libur
               </h2>
             </div>
             <div className="p-3 border-b border-slate-100">
@@ -322,7 +335,8 @@ export default function LaporanAbsensi() {
           <div className="bg-white border border-blue-200 rounded-2xl shadow-sm flex flex-col flex-1 overflow-hidden">
             <div className="p-3 border-b border-blue-100 bg-blue-50">
               <h2 className="text-xs font-bold text-blue-700 flex items-center gap-2">
-                ⏰ Jam Operasional Sesi
+                <ClockIcon className="w-4 h-4" />
+                Jam Operasional Sesi
               </h2>
             </div>
             <div className="p-4 flex-1 overflow-y-auto space-y-3">

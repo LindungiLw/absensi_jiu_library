@@ -5,14 +5,14 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // 🔥 PERBAIKAN 1: Ambil data (bisa dari key 'nim' atau 'id')
+    //  PERBAIKAN 1: Ambil data (bisa dari key 'nim' atau 'id')
     const rawId = body.nim || body.id;
 
     if (!rawId) {
       return NextResponse.json({ error: "ID is required." }, { status: 400 });
     }
 
-    // 🔥 PERBAIKAN 2: Paksa apapun inputannya menjadi String utuh
+    //  PERBAIKAN 2: Paksa apapun inputannya menjadi String utuh
     // Ini memastikan angka "0" di depan (seperti 0520230007) tidak akan pernah hilang
     const cleanId = String(rawId).trim();
 
@@ -41,9 +41,24 @@ export async function POST(request: Request) {
     let pengaturans = pengaturansRaw;
     if (pengaturans.length === 0) {
       pengaturans = [
-        { id: 1, nama_sesi: "Pagi", jam_mulai: "08:00", jam_selesai: "11:59" },
-        { id: 2, nama_sesi: "Siang", jam_mulai: "13:00", jam_selesai: "16:59" },
-        { id: 3, nama_sesi: "Malam", jam_mulai: "18:00", jam_selesai: "20:59" },
+        {
+          id: 1,
+          nama_sesi: "Morning",
+          jam_mulai: "08:00",
+          jam_selesai: "11:59",
+        },
+        {
+          id: 2,
+          nama_sesi: "Afternoon",
+          jam_mulai: "13:00",
+          jam_selesai: "16:59",
+        },
+        {
+          id: 3,
+          nama_sesi: "Evening",
+          jam_mulai: "18:00",
+          jam_selesai: "20:59",
+        },
       ];
     }
 

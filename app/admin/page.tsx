@@ -11,14 +11,29 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+import {
+  UserIcon,
+  GradCapIcon,
+  BriefcaseIcon,
+  ChartIcon,
+  UsersIcon,
+  ReportIcon,
+} from "../components/icons/LibraryIcons";
+
 export default function DashboardUtama() {
   const [chartData1W, setChartData1W] = useState<any[]>([]);
   const [chartData1M, setChartData1M] = useState<any[]>([]);
   const [chartData6M, setChartData6M] = useState<any[]>([]);
 
+  // State Kunjungan Hari Ini
   const [totalHadir, setTotalHadir] = useState(0);
   const [hadirMahasiswa, setHadirMahasiswa] = useState(0);
   const [hadirStaff, setHadirStaff] = useState(0);
+
+  // 🔥 STATE BARU: Total Anggota Terdaftar di Database
+  const [totalStudentReg, setTotalStudentReg] = useState(0);
+  const [totalLecturerReg, setTotalLecturerReg] = useState(0);
+  const [totalStaffReg, setTotalStaffReg] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
@@ -35,68 +50,58 @@ export default function DashboardUtama() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // 1. Tentukan Rentang Waktu (Hari ini mundur 180 hari / 6 bulan)
-      const today = new Date();
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setDate(today.getDate() - 180);
-
-      const formatDate = (date: Date) => {
-        const yyyy = date.getFullYear();
-        const mm = String(date.getMonth() + 1).padStart(2, "0");
-        const dd = String(date.getDate()).padStart(2, "0");
-        return `${yyyy}-${mm}-${dd}`;
-      };
-
-      const todayStr = formatDate(today);
-      const startStr = formatDate(sixMonthsAgo);
-
-      // 2. Tarik data dari API Pintar HANYA untuk 6 bulan terakhir
-      // Menggunakan isExport=true agar limit 3000 diabaikan (karena 6 bulan bisa lebih dari 3000 data)
-      const res = await fetch(
-        `/api/laporan?startDate=${startStr}&endDate=${todayStr}&isExport=true`,
-      );
+      // HANYA 1x PANGGILAN API UNTUK SELURUH DASHBOARD! ⚡
+      const res = await fetch("/api/dashboard");
       const json = await res.json();
 
       if (json.success) {
-        const rawData = json.data;
+        const dashboardData = json.data;
 
-        // 3. Hitung Kunjungan KHUSUS HARI INI
-        const kunjunganHariIni = rawData.filter(
-          (log: any) => log.tanggal === todayStr,
-        );
-        setTotalHadir(kunjunganHariIni.length);
-        setHadirMahasiswa(
-          kunjunganHariIni.filter((log: any) => log.role === "student").length,
-        );
-        setHadirStaff(
-          kunjunganHariIni.filter((log: any) => log.role !== "student").length,
-        );
+        // 1. SET STATE KUNJUNGAN HARI INI
+        setTotalHadir(dashboardData.hariIni.total);
+        setHadirMahasiswa(dashboardData.hariIni.mahasiswa);
+        setHadirStaff(dashboardData.hariIni.staff);
 
-        // 4. Buat Peta Tanggal Kosong selama 180 Hari (Agar grafik tidak bolong jika ada hari libur)
+        // 2. SET STATE TOTAL ANGGOTA DATABASE
+        setTotalStudentReg(dashboardData.database.student);
+        setTotalLecturerReg(dashboardData.database.lecturer);
+        setTotalStaffReg(dashboardData.database.staff);
+
+        // 3. PROSES GRAFIK (Isi tanggal yang kosong/hari libur dengan angka 0)
+        const today = new Date();
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setDate(today.getDate() - 180);
+
+        const formatDate = (date: Date) => {
+          const yyyy = date.getFullYear();
+          const mm = String(date.getMonth() + 1).padStart(2, "0");
+          const dd = String(date.getDate()).padStart(2, "0");
+          return `${yyyy}-${mm}-${dd}`;
+        };
+
         const dateMap: Record<string, number> = {};
         for (
           let d = new Date(sixMonthsAgo);
           d <= today;
           d.setDate(d.getDate() + 1)
         ) {
-          const isoDate = formatDate(new Date(d));
-          dateMap[isoDate] = 0;
+          dateMap[formatDate(new Date(d))] = 0;
         }
 
-        // 5. Isi Peta Tanggal dengan jumlah kehadiran
-        rawData.forEach((log: any) => {
-          if (dateMap[log.tanggal] !== undefined) {
-            dateMap[log.tanggal] += 1;
+        // Timpa angka 0 dengan data asli dari database
+        dashboardData.grafik.forEach((g: any) => {
+          if (dateMap[g.tanggal] !== undefined) {
+            dateMap[g.tanggal] = g.total;
           }
         });
 
-        // 6. Ubah ke format Array yang diminta Recharts
+        // Ubah ke format Array untuk Recharts
         const chartDataUtuh = Object.keys(dateMap)
           .sort()
           .map((date) => {
             const d = new Date(date);
             return {
-              rawDate: date, // Disimpan untuk filtering
+              rawDate: date,
               tanggal: d.toLocaleDateString("id-ID", {
                 day: "numeric",
                 month: "short",
@@ -105,12 +110,12 @@ export default function DashboardUtama() {
             };
           });
 
-        // 7. Potong array menjadi 3 bagian: 7 Hari, 30 Hari, dan 180 Hari
+        // 4. POTONG ARRAY UNTUK 3 GRAFIK
         setChartData6M(chartDataUtuh);
         setChartData1M(chartDataUtuh.slice(-30));
         setChartData1W(chartDataUtuh.slice(-7));
 
-        // Update waktu sinkronisasi
+        // 5. UPDATE JAM TERAKHIR SINKRONISASI
         setLastUpdated(
           new Date().toLocaleTimeString("id-ID", {
             hour: "2-digit",
@@ -218,14 +223,13 @@ export default function DashboardUtama() {
   );
 
   return (
-    <div className="p-4 md:p-6 space-y-4 w-full text-slate-800">
+    <div className="p-4 md:p-6 space-y-6 w-full text-slate-800">
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-2xl font-black text-blue-800">
-            OVERVIEW ABSENSI
-          </h1>
+          <h1 className="text-2xl font-black text-blue-800">COMMAND CENTER</h1>
           <p className="text-slate-500 text-xs mt-1">
-            Data rekapitulasi kunjungan JIU Library.
+            Data statistik absensi dan keanggotaan JIU Library.
           </p>
         </div>
         <div className="flex items-center gap-4 bg-white border border-slate-200 px-3 py-2 rounded-xl shadow-sm w-full md:w-auto">
@@ -244,49 +248,118 @@ export default function DashboardUtama() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-100 rounded-full blur-[30px] pointer-events-none"></div>
-          <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1">
-            Total Kunjungan (Hari Ini)
-          </p>
-          <div className="flex items-end gap-2 relative z-10">
-            <h2 className="text-4xl font-black text-slate-800 leading-none">
-              {totalHadir}
-            </h2>
-            <span className="text-blue-600 text-xs font-bold mb-1">orang</span>
+      {/* ==========================================
+          🔥 BARIS 1: KUNJUNGAN HARI INI
+          ========================================== */}
+      <div>
+        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <ChartIcon className="w-4 h-4" />
+          Kunjungan Hari Ini
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-100 rounded-full blur-[30px] pointer-events-none"></div>
+            <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1">
+              Total Hadir
+            </p>
+            <div className="flex items-end gap-2 relative z-10">
+              <h2 className="text-4xl font-black text-slate-800 leading-none">
+                {totalHadir}
+              </h2>
+              <span className="text-blue-600 text-xs font-bold mb-1">
+                orang
+              </span>
+            </div>
           </div>
-        </div>
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-sky-100 rounded-full blur-[30px] pointer-events-none"></div>
-          <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1">
-            Kunjungan Mahasiswa
-          </p>
-          <div className="flex items-end gap-2 relative z-10">
-            <h2 className="text-4xl font-black text-slate-800 leading-none">
-              {hadirMahasiswa}
-            </h2>
-            <span className="text-sky-600 text-xs font-bold mb-1">orang</span>
+          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-sky-100 rounded-full blur-[30px] pointer-events-none"></div>
+            <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1">
+              Mahasiswa Hadir
+            </p>
+            <div className="flex items-end gap-2 relative z-10">
+              <h2 className="text-4xl font-black text-slate-800 leading-none">
+                {hadirMahasiswa}
+              </h2>
+              <span className="text-sky-600 text-xs font-bold mb-1">orang</span>
+            </div>
           </div>
-        </div>
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-100 rounded-full blur-[30px] pointer-events-none"></div>
-          <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1">
-            Kunjungan Dosen & Staff
-          </p>
-          <div className="flex items-end gap-2 relative z-10">
-            <h2 className="text-4xl font-black text-slate-800 leading-none">
-              {hadirStaff}
-            </h2>
-            <span className="text-indigo-600 text-xs font-bold mb-1">
-              orang
-            </span>
+          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-100 rounded-full blur-[30px] pointer-events-none"></div>
+            <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1">
+              Dosen & Staff Hadir
+            </p>
+            <div className="flex items-end gap-2 relative z-10">
+              <h2 className="text-4xl font-black text-slate-800 leading-none">
+                {hadirStaff}
+              </h2>
+              <span className="text-indigo-600 text-xs font-bold mb-1">
+                orang
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 p-4 md:p-5 rounded-2xl shadow-sm w-full">
-        <h2 className="text-base font-bold text-slate-800 mb-4">
+      {/* ==========================================
+          🔥 BARIS 2: TOTAL ANGGOTA TERDAFTAR
+          ========================================== */}
+      <div>
+        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <UsersIcon className="w-4 h-4" />
+          Total Anggota Database
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between group hover:border-emerald-300 transition-colors">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-100 rounded-full blur-[30px] pointer-events-none"></div>
+            <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1">
+              Mahasiswa Aktif
+            </p>
+            <div className="flex items-end gap-2 relative z-10">
+              <h2 className="text-4xl font-black text-slate-800 leading-none">
+                {totalStudentReg}
+              </h2>
+              <span className="text-emerald-600 text-xs font-bold mb-1">
+                orang
+              </span>
+            </div>
+          </div>
+          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between group hover:border-amber-300 transition-colors">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-100 rounded-full blur-[30px] pointer-events-none"></div>
+            <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1">
+              Dosen Aktif
+            </p>
+            <div className="flex items-end gap-2 relative z-10">
+              <h2 className="text-4xl font-black text-slate-800 leading-none">
+                {totalLecturerReg}
+              </h2>
+              <span className="text-amber-600 text-xs font-bold mb-1">
+                orang
+              </span>
+            </div>
+          </div>
+          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between group hover:border-purple-300 transition-colors">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-100 rounded-full blur-[30px] pointer-events-none"></div>
+            <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1">
+              Staff Aktif
+            </p>
+            <div className="flex items-end gap-2 relative z-10">
+              <h2 className="text-4xl font-black text-slate-800 leading-none">
+                {totalStaffReg}
+              </h2>
+              <span className="text-purple-600 text-xs font-bold mb-1">
+                orang
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ==========================================
+          🔥 BARIS 3: GRAFIK / VISUALISASI
+          ========================================== */}
+      <div className="bg-white border border-slate-200 p-4 md:p-5 rounded-2xl shadow-sm w-full mt-2">
+        <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <ReportIcon className="w-5 h-5 text-blue-600" />
           Visualisasi Kunjungan Berkala
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

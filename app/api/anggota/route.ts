@@ -4,7 +4,7 @@ import { prisma } from "../../lib/prisma";
 export const dynamic = "force-dynamic";
 
 // ==============================================================
-// 1. MENGAMBIL DATA ANGGOTA (PAGINASI, SEARCH, & NEGARA/PULAU)
+// 1. MENGAMBIL DATA ANGGOTA (PAGINASI, SEARCH, & STATISTIK)
 // ==============================================================
 export async function GET(request: Request) {
   try {
@@ -33,8 +33,14 @@ export async function GET(request: Request) {
       whereClause.role = role;
     }
 
-    // Tarik data Anggota + Hitung Total Records secara PARALEL (Sangat Cepat)
-    const [daftarAnggota, totalRecords] = await Promise.all([
+    // 🔥 PERBAIKAN: Tarik data Anggota + Hitung Total Keseluruhan (Sangat Cepat karena paralel)
+    const [
+      daftarAnggota,
+      totalRecords,
+      countStudent,
+      countLecturer,
+      countStaff,
+    ] = await Promise.all([
       prisma.anggota.findMany({
         where: whereClause,
         orderBy: { nama: "asc" }, // Urut Abjad
@@ -49,6 +55,9 @@ export async function GET(request: Request) {
       prisma.anggota.count({
         where: whereClause, // Hitung total seluruh data yang cocok
       }),
+      prisma.anggota.count({ where: { role: "student" } }),
+      prisma.anggota.count({ where: { role: "lecturer" } }),
+      prisma.anggota.count({ where: { role: "staff" } }),
     ]);
 
     // Format ulang objeknya termasuk kolom negara dan pulau untuk UI
@@ -72,6 +81,12 @@ export async function GET(request: Request) {
         currentPage: page,
         totalPages: totalPages,
         totalRecords: totalRecords,
+        // 🔥 Kirim data statistik ke frontend untuk kotak mini dashboard
+        stats: {
+          student: countStudent,
+          lecturer: countLecturer,
+          staff: countStaff,
+        },
       },
     });
   } catch (error) {

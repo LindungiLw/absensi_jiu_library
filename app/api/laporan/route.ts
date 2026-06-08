@@ -7,11 +7,10 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
 
-    // Tangkap parameter filter waktu dari Frontend
-    const date = searchParams.get("date"); // Untuk Pencarian Tabel Harian
-    const startDate = searchParams.get("startDate"); // Mulai tanggal (Untuk Excel)
-    const endDate = searchParams.get("endDate"); // Sampai tanggal (Untuk Excel)
-    const isExport = searchParams.get("isExport") === "true"; // Penanda kalau ini request dari tombol Excel
+    const date = searchParams.get("date");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    const isExport = searchParams.get("isExport") === "true";
 
     let whereClause: any = {};
 

@@ -5,6 +5,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./animations.css";
 import Card3D from "./Card3D";
 import BookBackground from "./BookBackground";
+import { HandTapIcon, CrownIcon } from "./components/icons/LibraryIcons";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -22,6 +23,7 @@ const CONFETTI_COLORS = [
   "bg-emerald-400",
 ];
 
+// Perhitungan Confetti ditaruh di luar (Sudah benar! Mencegah lag saat render)
 const CONFETTI_PARTICLES = Array.from({ length: 60 }).map(() => {
   const angle = Math.random() * Math.PI * 2;
   const velocity = 150 + Math.random() * 350;
@@ -108,7 +110,7 @@ export default function HalamanAbsensi() {
     setNotif(null);
     setShowSuccessAnim(false);
     setLogTerakhir(null);
-    setInputID("");
+    setInputID(""); // Kosongkan input agar siap (Mencegah tampilan nge-lag)
 
     try {
       const response = await fetch("/api/absensi", {
@@ -120,10 +122,8 @@ export default function HalamanAbsensi() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // 🔥 DEFAULT ENGLISH GREETING
         let sapaan = `Hello, ${data.nama}! 👋 Have a great day!`;
 
-        // CUSTOM GREETING BERDASARKAN NEGARA/REGION
         if (data.negara === "KR")
           sapaan = `안녕하세요, ${data.nama}! 👋 Have a great day!`;
         else if (data.negara === "JP")
@@ -160,10 +160,14 @@ export default function HalamanAbsensi() {
         showNotification("error", data.error || "Failed to process data.");
       }
     } catch (err) {
-      showNotification("error", "Campus internet connection issue 📡");
+      showNotification("error", "Campus internet connection issue");
     } finally {
       setLoading(false);
-      inputRef.current?.focus();
+
+      // Jika tidak ada setTimeout, kursor bisa hilang dan scanner macet!
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 10);
     }
   };
 
@@ -276,7 +280,10 @@ export default function HalamanAbsensi() {
 
           <p className="text-slate-500 text-sm font-medium flex items-center justify-center gap-1">
             Please tap your ID card on the scanner
-            <span className="inline-block animate-bounce text-base">👇</span>
+            <p className="text-slate-500 text-sm font-medium flex items-center justify-center gap-2">
+              Please tap your ID card on the scanner
+              <HandTapIcon className="w-5 h-5 text-blue-500" />
+            </p>
           </p>
         </div>
 
@@ -291,6 +298,10 @@ export default function HalamanAbsensi() {
             onChange={(e) => setInputID(e.target.value)}
             disabled={loading}
             placeholder="Scan / Type your ID..."
+            autoComplete="off" // Mencegah browser mikir keras mencari riwayat
+            autoCorrect="off" // Mencegah HP/Tablet mengoreksi otomatis
+            spellCheck="false" // Mencegah garis merah di bawah teks
+            autoFocus // Langsung fokus sejak halaman dimuat
             className="w-full max-w-md bg-white/90 border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 rounded-2xl px-6 py-4 text-center font-mono text-xl tracking-widest outline-none text-slate-800 placeholder:text-slate-400 transition-all duration-300 shadow-inner hover:border-slate-300"
           />
 
@@ -325,7 +336,12 @@ export default function HalamanAbsensi() {
             <div className="flex flex-col animate-in fade-in slide-in-from-bottom-3 duration-500">
               <div className="flex flex-col items-center justify-center mb-5">
                 <div className="flex items-center gap-1.5 opacity-90">
-                  <span className="text-xl">👑</span>
+                  <div className="flex items-center gap-1.5 opacity-90">
+                    <CrownIcon className="w-5 h-5 text-amber-500" />
+                    <span className="text-xs font-black text-amber-500 uppercase tracking-[0.25em] drop-shadow-sm mt-0.5">
+                      {logTerakhir.role} RANK
+                    </span>
+                  </div>
                   <span className="text-xs font-black text-amber-500 uppercase tracking-[0.25em] drop-shadow-sm mt-0.5">
                     {logTerakhir.role} RANK
                   </span>
