@@ -325,7 +325,7 @@ export default function HalamanAbsensi() {
             DREAM BLUE LIBRARY
           </h1>
           <div className="text-slate-500 text-sm font-medium flex items-center justify-center gap-2">
-            Please tap your ID card on the scanner
+            Please tap your ID card on the scanner for presence check-in
             <HandTapIcon className="w-5 h-5 text-blue-500" />
           </div>
         </div>

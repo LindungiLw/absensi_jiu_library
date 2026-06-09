@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Absensi | Dream Blue Library ",
+  title: "Presensi | Dream Blue Library ",
   description: "System for Attendance using QR Code in Dream Blue Library",
 };
 
