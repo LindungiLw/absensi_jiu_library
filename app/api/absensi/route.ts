@@ -110,9 +110,8 @@ export async function POST(request: Request) {
       );
     }
 
-    let updatedAnggota;
     try {
-      const transactionResult = await prisma.$transaction([
+      await prisma.$transaction([
         prisma.kehadiran.create({
           data: {
             id_anggota: anggota.id_anggota,
@@ -125,13 +124,10 @@ export async function POST(request: Request) {
           data: { total_kunjungan: { increment: 1 } },
         }),
       ]);
-      updatedAnggota = transactionResult[1];
     } catch (error: any) {
       if (error.code === "P2002") {
         return NextResponse.json(
-          {
-            error: `Hold on! You have already checked in for this session.`,
-          },
+          { error: `Hold on! You have already checked in for this session.` },
           { status: 403 },
         );
       }
@@ -139,19 +135,17 @@ export async function POST(request: Request) {
     }
 
     // ==============================================================
-    //  LOGIKA BARU: DETEKSI SEMESTER BERSIH BERDASARKAN KALENDER (JAN-JUN & JUL-DES)
+    // 🔥 OPTIMASI PERFORMA UTAMAKAN KECEPATAN (JAN-JUN & JUL-DES)
     // ==============================================================
-    const currentMonth = wibTime.getMonth() + 1; // 1 s.d 12
+    const currentMonth = wibTime.getMonth() + 1;
     const currentYearNum = wibTime.getFullYear();
     let semStartDate = "";
     let semEndDate = "";
 
     if (currentMonth >= 1 && currentMonth <= 6) {
-      // Semester 1 (Awal Tahun): 1 Januari s.d 30 Juni
       semStartDate = `${currentYearNum}-01-01`;
       semEndDate = `${currentYearNum}-06-30`;
     } else {
-      // Semester 2 (Akhir Tahun): 1 Juli s.d 31 Desember
       semStartDate = `${currentYearNum}-07-01`;
       semEndDate = `${currentYearNum}-12-31`;
     }
@@ -160,36 +154,35 @@ export async function POST(request: Request) {
     const myCurrentSemesterVisits = await prisma.kehadiran.count({
       where: {
         id_anggota: anggota.id_anggota,
-        tanggal: {
-          gte: semStartDate,
-          lte: semEndDate,
-        },
+        tanggal: { gte: semStartDate, lte: semEndDate },
       },
     });
 
-    // 2. Ambil statistik kunjungan SEMUA ORANG dengan role yang sama khusus di SEMESTER INI
+    // 2. Kueri Ringan Teroptimasi: Menambahkan klausa 'having' agar database HANYA
+    // mengambil data orang yang total kehadirannya LEBIH TINGGI atau SAMA dengan saya.
     const groupResults = await prisma.kehadiran.groupBy({
       by: ["id_anggota"],
       where: {
-        tanggal: {
-          gte: semStartDate,
-          lte: semEndDate,
-        },
-        anggota: {
-          role: anggota.role,
-        },
+        tanggal: { gte: semStartDate, lte: semEndDate },
+        anggota: { role: anggota.role },
       },
-      _count: {
-        id_anggota: true,
+      _count: { id_anggota: true },
+      having: {
+        id_anggota: {
+          _count: {
+            gte: myCurrentSemesterVisits,
+          },
+        },
       },
     });
 
-    // 3. Kalkulasi Ranking secara real-time di memori server
     let orangLebihRajin = 0;
     let orangPoinSamaLebihSenior = 0;
 
-    groupResults.forEach((g) => {
-      if (g.id_anggota === anggota.id_anggota) return;
+    // Proses perulangan kini jauh lebih sedikit karena data sudah disaring ketat di level database
+    for (let i = 0; i < groupResults.length; i++) {
+      const g = groupResults[i];
+      if (g.id_anggota === anggota.id_anggota) continue;
 
       const totalKunjunganSmtIni = g._count.id_anggota;
 
@@ -201,7 +194,7 @@ export async function POST(request: Request) {
       ) {
         orangPoinSamaLebihSenior++;
       }
-    });
+    }
 
     const rankingSaatIni = orangLebihRajin + orangPoinSamaLebihSenior + 1;
     // ==============================================================
