@@ -5,7 +5,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./animations.css";
 import Card3D from "./Card3D";
 import BookBackground from "./BookBackground"; // 🔥 Ikon & Buku melayang dipertahankan
-import { HandTapIcon, CrownIcon } from "./components/icons/LibraryIcons";
+import { HandTapIcon } from "./components/icons/LibraryIcons";
 
 // Import Komponen Terpisah
 import KioskLockScreen from "./components/KioskLockScreen";
@@ -33,7 +33,6 @@ const CONFETTI_PARTICLES = Array.from({ length: 60 }).map(() => {
   const tx = Math.cos(angle) * velocity;
   const ty = Math.sin(angle) * velocity - 80;
   const rot = Math.random() * 360 + 180;
-  const color = CONFETTI_COLORS[0];
   const delay = Math.random() * 0.1;
   const size = Math.floor(Math.random() * 8) + 6;
   const isCircle = Math.random() > 0.5;
@@ -252,7 +251,6 @@ export default function HalamanAbsensi() {
     );
   }
 
-  // MEJA SCANNER UTAMA (PURE WHITE BACKGROUND WITH ANIMATIONS restored)
   return (
     <main
       className={`${plusJakartaSans.className} min-h-screen bg-white text-slate-800 flex flex-col items-center justify-center p-4 relative overflow-hidden select-none`}
@@ -267,7 +265,7 @@ export default function HalamanAbsensi() {
         </button>
       </div>
 
-      {/* 📚 ANIMASI BUKU & KATA-KATA MELAYANG DIKEMBALIKAN */}
+      {/* 📚 ANIMASI BUKU & KATA-KATA MELAYANG */}
       <BookBackground />
 
       {showSuccessAnim && (
@@ -322,7 +320,7 @@ export default function HalamanAbsensi() {
             />
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-blue-800 via-blue-600 to-sky-500 bg-clip-text text-transparent tracking-tight">
-            DREAM BLUE LIBRARY 
+            DREAM BLUE LIBRARY
           </h1>
           <div className="text-slate-500 text-sm font-medium flex items-center justify-center gap-2">
             Please tap your ID card on the scanner for presence check-in
@@ -376,17 +374,16 @@ export default function HalamanAbsensi() {
         <div className="w-full max-w-md mx-auto relative z-20">
           {logTerakhir ? (
             <div className="flex flex-col animate-in fade-in slide-in-from-bottom-3 duration-500">
+              {/* 🏆 DATA DARI DATABASE DIKEMBALIKAN UTUH TANPA ADANYA TYPO VARIABEL */}
               <div className="flex flex-col items-center justify-center mb-5">
-                <div className="flex items-center gap-1.5 opacity-90">
-                  <CrownIcon className="w-5 h-5 text-amber-500" />
-                  <span className="text-xs font-black text-amber-500 uppercase tracking-[0.25em] drop-shadow-sm mt-0.5">
-                    {logTerakhir.role} RANK
-                  </span>
-                </div>
-                <span
-                  className="text-7xl font-black text-amber-500 leading-none drop-shadow-lg mt-1"
-                  style={{ textShadow: "0 4px 20px rgba(245,158,11,0.3)" }}
-                >
+                <span className="text-sm font-black text-slate-500 bg-slate-100 px-3 py-1 rounded-full uppercase tracking-[0.2em] shadow-sm">
+                  {logTerakhir.role === "student"
+                    ? "STUDENT RANK"
+                    : logTerakhir.role === "lecturer"
+                      ? "LECTURER RANK"
+                      : "STAFF RANK"}
+                </span>
+                <span className="text-7xl font-black text-blue-700 leading-none tracking-tight mt-3">
                   {logTerakhir.ranking}
                 </span>
               </div>
@@ -406,12 +403,10 @@ export default function HalamanAbsensi() {
                       </p>
                     </div>
                   </div>
-                  <div className="text-right flex flex-col items-end gap-1">
-                    <span className="text-[9px] uppercase font-bold bg-white text-slate-600 px-2 py-0.5 rounded-md border border-slate-200 shadow-sm">
+                  {/* ⏱️ BAGIAN KANAN: HANYA MENAMPILKAN SESI */}
+                  <div className="text-right flex flex-col items-end justify-center">
+                    <span className="text-[10px] uppercase font-black bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md border border-blue-100 shadow-sm">
                       {logTerakhir.sesi}
-                    </span>
-                    <span className="text-xs font-mono text-blue-600 font-bold tracking-tight">
-                      {logTerakhir.waktu}
                     </span>
                   </div>
                 </div>

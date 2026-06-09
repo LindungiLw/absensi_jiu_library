@@ -138,22 +138,73 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    const orangLebihRajin = await prisma.anggota.count({
+    // ==============================================================
+    //  LOGIKA BARU: DETEKSI SEMESTER BERSIH BERDASARKAN KALENDER (JAN-JUN & JUL-DES)
+    // ==============================================================
+    const currentMonth = wibTime.getMonth() + 1; // 1 s.d 12
+    const currentYearNum = wibTime.getFullYear();
+    let semStartDate = "";
+    let semEndDate = "";
+
+    if (currentMonth >= 1 && currentMonth <= 6) {
+      // Semester 1 (Awal Tahun): 1 Januari s.d 30 Juni
+      semStartDate = `${currentYearNum}-01-01`;
+      semEndDate = `${currentYearNum}-06-30`;
+    } else {
+      // Semester 2 (Akhir Tahun): 1 Juli s.d 31 Desember
+      semStartDate = `${currentYearNum}-07-01`;
+      semEndDate = `${currentYearNum}-12-31`;
+    }
+
+    // 1. Hitung berapa kali SAYA sudah berkunjung di SEMESTER KALENDER INI
+    const myCurrentSemesterVisits = await prisma.kehadiran.count({
       where: {
-        role: anggota.role,
-        total_kunjungan: { gt: updatedAnggota.total_kunjungan },
+        id_anggota: anggota.id_anggota,
+        tanggal: {
+          gte: semStartDate,
+          lte: semEndDate,
+        },
       },
     });
 
-    const orangPoinSamaLebihSenior = await prisma.anggota.count({
+    // 2. Ambil statistik kunjungan SEMUA ORANG dengan role yang sama khusus di SEMESTER INI
+    const groupResults = await prisma.kehadiran.groupBy({
+      by: ["id_anggota"],
       where: {
-        role: anggota.role,
-        total_kunjungan: updatedAnggota.total_kunjungan,
-        id_anggota: { lt: updatedAnggota.id_anggota },
+        tanggal: {
+          gte: semStartDate,
+          lte: semEndDate,
+        },
+        anggota: {
+          role: anggota.role,
+        },
       },
+      _count: {
+        id_anggota: true,
+      },
+    });
+
+    // 3. Kalkulasi Ranking secara real-time di memori server
+    let orangLebihRajin = 0;
+    let orangPoinSamaLebihSenior = 0;
+
+    groupResults.forEach((g) => {
+      if (g.id_anggota === anggota.id_anggota) return;
+
+      const totalKunjunganSmtIni = g._count.id_anggota;
+
+      if (totalKunjunganSmtIni > myCurrentSemesterVisits) {
+        orangLebihRajin++;
+      } else if (
+        totalKunjunganSmtIni === myCurrentSemesterVisits &&
+        g.id_anggota < anggota.id_anggota
+      ) {
+        orangPoinSamaLebihSenior++;
+      }
     });
 
     const rankingSaatIni = orangLebihRajin + orangPoinSamaLebihSenior + 1;
+    // ==============================================================
 
     return NextResponse.json({
       success: true,
