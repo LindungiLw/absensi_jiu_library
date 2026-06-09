@@ -322,7 +322,7 @@ export default function HalamanAbsensi() {
             />
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-blue-800 via-blue-600 to-sky-500 bg-clip-text text-transparent tracking-tight">
-            DREAM BLUE LIBRARY
+            DREAM BLUE LIBRARY 
           </h1>
           <div className="text-slate-500 text-sm font-medium flex items-center justify-center gap-2">
             Please tap your ID card on the scanner for presence check-in

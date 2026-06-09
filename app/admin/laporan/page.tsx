@@ -8,11 +8,21 @@ import {
   DownloadIcon,
 } from "@/app/components/icons/LibraryIcons";
 
+// 🔥 GLOBAL CACHE (Di Luar Komponen)
+// Menyimpan memori laporan harian dan pengaturan agar tidak reload saat bolak-balik menu
+let globalLaporanCache: {
+  master: { libur: any[]; sesi: any[] } | null;
+  harian: Record<string, any[]>;
+} = {
+  master: null,
+  harian: {},
+};
+
 export default function LaporanAbsensi() {
   const [loading, setLoading] = useState(true);
 
   // ==============================================================
-  // 🔥 MENGGUNAKAN ZONA WAKTU JAKARTA SECARA PAKSA BUKAN UTC (ANTI-TIME TRAVEL BUG)
+  // MENGGUNAKAN ZONA WAKTU JAKARTA SECARA PAKSA BUKAN UTC (ANTI-TIME TRAVEL BUG)
   // ==============================================================
   const getWIBDate = () => {
     const d = new Date(
@@ -31,7 +41,6 @@ export default function LaporanAbsensi() {
   const [loadingHarian, setLoadingHarian] = useState(false);
 
   // STATE EXCEL (Rentang Tanggal Bebas)
-  // Default: Dari tanggal 1 awal bulan ini, sampai hari ini
   const firstDayOfMonth = todayDate.slice(0, 8) + "01";
   const [exportStartDate, setExportStartDate] = useState(firstDayOfMonth);
   const [exportEndDate, setExportEndDate] = useState(todayDate);
@@ -45,11 +54,22 @@ export default function LaporanAbsensi() {
   const [sesiWaktu, setSesiWaktu] = useState<any[]>([]);
   const [loadingSesi, setLoadingSesi] = useState(false);
 
+  // STATE TAMBAHAN UNTUK CHECKBOX DEFAULT
+  const [useDefaultSesi, setUseDefaultSesi] = useState(false);
+
   // State Pengendali Open/Close Custom Dropdown Kategori Download
   const [openRoleDownload, setOpenRoleDownload] = useState(false);
 
-  // Fungsi ini sekarang 100x Lebih Ringan karena tidak mengunduh data anggota!
-  const fetchMasterData = async () => {
+  // 🔥 FUNGSI TARIK MASTER DATA (DENGAN SMART CACHE)
+  const fetchMasterData = async (forceRefresh = false) => {
+    // 1. Cek apakah master data (Libur & Sesi) sudah ada di memori
+    if (!forceRefresh && globalLaporanCache.master) {
+      setLiburList(globalLaporanCache.master.libur);
+      setSesiWaktu(globalLaporanCache.master.sesi);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const [resLibur, resSesi] = await Promise.all([
@@ -60,8 +80,16 @@ export default function LaporanAbsensi() {
       const jsonLibur = await resLibur.json();
       const jsonSesi = await resSesi.json();
 
-      if (jsonLibur.success) setLiburList(jsonLibur.data);
-      if (jsonSesi.success) setSesiWaktu(jsonSesi.data);
+      if (jsonLibur.success && jsonSesi.success) {
+        setLiburList(jsonLibur.data);
+        setSesiWaktu(jsonSesi.data);
+
+        // 💾 Simpan ke Global Cache
+        globalLaporanCache.master = {
+          libur: jsonLibur.data,
+          sesi: jsonSesi.data,
+        };
+      }
     } catch (error) {
       console.error("Gagal menarik master data", error);
     } finally {
@@ -73,14 +101,23 @@ export default function LaporanAbsensi() {
     fetchMasterData();
   }, []);
 
+  // 🔥 EFEK UNTUK PENCARIAN TANGGAL HARIAN (DENGAN MEMORI INSTAN)
   useEffect(() => {
     const fetchHarian = async () => {
+      // 1. Cek apakah data di tanggal ini sudah pernah dicari sebelumnya?
+      if (globalLaporanCache.harian[searchDate]) {
+        setDataAbsenHarian(globalLaporanCache.harian[searchDate]);
+        return; // Jika sudah ada, tampilkan instan dan hentikan fungsi!
+      }
+
       setLoadingHarian(true);
       try {
         const res = await fetch(`/api/laporan?date=${searchDate}`);
         const json = await res.json();
         if (json.success) {
           setDataAbsenHarian(json.data);
+          // 💾 Simpan hasil pencarian tanggal ini ke Global Cache
+          globalLaporanCache.harian[searchDate] = json.data;
         }
       } catch (err) {
         console.error(err);
@@ -92,7 +129,7 @@ export default function LaporanAbsensi() {
   }, [searchDate]);
 
   // ==============================================================
-  // 3. EXCEL GENERATOR (RENTANG TANGGAL BEBAS & LAZY LOADING)
+  // EXCEL GENERATOR (TIDAK DI CACHE KARENA EXPORT BEBAS RENTANG)
   // ==============================================================
   const handleDownloadExcel = async () => {
     if (exportStartDate > exportEndDate) {
@@ -102,7 +139,6 @@ export default function LaporanAbsensi() {
 
     setIsExporting(true);
     try {
-      // 1. Tarik Data Kunjungan Terlebih Dahulu
       const resAbsen = await fetch(
         `/api/laporan?startDate=${exportStartDate}&endDate=${exportEndDate}&isExport=true`,
       );
@@ -110,17 +146,14 @@ export default function LaporanAbsensi() {
 
       if (!jsonAbsen.success || jsonAbsen.data.length === 0) {
         alert("Tidak ada data kunjungan pada rentang tanggal tersebut.");
-        setIsExporting(false); // Menghentikan loading
+        setIsExporting(false);
         return;
       }
 
-      // 🔍 2. LAZY LOAD: Tarik Master Data Anggota BARU SAAT EXCEL MAU DIBUAT
-      // Ini membuat halaman utama sangat ringan di awal!
       const resAnggota = await fetch("/api/anggota?limit=10000");
       const jsonAnggota = await resAnggota.json();
       const anggotaMaster: any[] = jsonAnggota.data || [];
 
-      // 3. Filter Kategori Role
       const anggotaSesuaiKategori = anggotaMaster.filter((a) =>
         downloadRole === "all" ? true : a.role === downloadRole,
       );
@@ -134,13 +167,11 @@ export default function LaporanAbsensi() {
       const dataAbsenExport = jsonAbsen.data;
       const catatanKehadiran: Record<string, number> = {};
 
-      // 4. Hitung Presensi
       dataAbsenExport.forEach((log: any) => {
         catatanKehadiran[log.id_anggota] =
           (catatanKehadiran[log.id_anggota] || 0) + 1;
       });
 
-      // 5. Rakit ke Excel
       let finalDataExcel = anggotaSesuaiKategori.map((anggota) => {
         let rowData: any = {
           "ID Anggota": anggota.id_anggota,
@@ -185,12 +216,12 @@ export default function LaporanAbsensi() {
     });
     setTglLibur("");
     setKetLibur("");
-    fetchMasterData();
+    fetchMasterData(true); // 🔥 Paksa Refresh Cache Master
   };
 
   const handleHapusLibur = async (id: number) => {
     await fetch(`/api/libur?id=${id}`, { method: "DELETE" });
-    fetchMasterData();
+    fetchMasterData(true); // 🔥 Paksa Refresh Cache Master
   };
 
   const handleUpdateJamOperasional = async () => {
@@ -201,6 +232,7 @@ export default function LaporanAbsensi() {
       body: JSON.stringify(sesiWaktu),
     });
     setLoadingSesi(false);
+    fetchMasterData(true); // 🔥 Paksa Refresh Cache Master
     alert("Jam operasional berhasil diperbarui!");
   };
 
@@ -208,6 +240,25 @@ export default function LaporanAbsensi() {
     setSesiWaktu((prev) =>
       prev.map((sesi) => (sesi.id === id ? { ...sesi, [field]: value } : sesi)),
     );
+  };
+
+  const handleToggleDefaultSesi = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isChecked = e.target.checked;
+    setUseDefaultSesi(isChecked);
+
+    if (isChecked) {
+      setSesiWaktu((prev) =>
+        prev.map((sesi) => {
+          if (sesi.nama_sesi === "Pagi")
+            return { ...sesi, jam_mulai: "08:00", jam_selesai: "11:59" };
+          if (sesi.nama_sesi === "Siang")
+            return { ...sesi, jam_mulai: "13:00", jam_selesai: "16:59" };
+          if (sesi.nama_sesi === "Malam")
+            return { ...sesi, jam_mulai: "18:00", jam_selesai: "20:59" };
+          return sesi;
+        }),
+      );
+    }
   };
 
   return (
@@ -303,7 +354,7 @@ export default function LaporanAbsensi() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* KOLOM KIRI (HARI LIBUR & JAM OPERASIONAL) */}
-        <div className="lg:col-span-1 flex flex-col gap-4 h-[550px]">
+        <div className="lg:col-span-1 flex flex-col gap-4 h-[650px]">
           {/* KOTAK 1: HARI LIBUR */}
           <div className="bg-white border border-rose-200 rounded-2xl shadow-sm flex flex-col flex-1 overflow-hidden">
             <div className="p-3 border-b border-rose-100 bg-rose-50">
@@ -363,14 +414,29 @@ export default function LaporanAbsensi() {
           </div>
 
           {/* KOTAK 2: JAM OPERASIONAL */}
-          <div className="bg-white border border-blue-200 rounded-2xl shadow-sm flex flex-col flex-1 overflow-hidden">
-            <div className="p-3 border-b border-blue-100 bg-blue-50">
+          <div className="bg-white border border-blue-200 rounded-2xl shadow-sm flex flex-col h-max overflow-hidden">
+            <div className="p-3 border-b border-blue-100 bg-blue-50 flex justify-between items-center">
               <h2 className="text-xs font-bold text-blue-700 flex items-center gap-2">
                 <ClockIcon className="w-4 h-4" />
                 Jam Operasional Sesi
               </h2>
             </div>
-            <div className="p-4 flex-1 overflow-y-auto space-y-3">
+
+            <div className="px-4 pt-3 pb-1 border-b border-slate-100">
+              <label className="flex items-center gap-2 cursor-pointer group w-max">
+                <input
+                  type="checkbox"
+                  checked={useDefaultSesi}
+                  onChange={handleToggleDefaultSesi}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <span className="text-[11px] font-bold text-slate-600 group-hover:text-blue-600 transition-colors">
+                  Gunakan Jam Default Kampus
+                </span>
+              </label>
+            </div>
+
+            <div className="p-4 space-y-3">
               {sesiWaktu.length === 0 ? (
                 <p className="text-xs text-slate-400 italic text-center">
                   Memuat...
@@ -388,15 +454,17 @@ export default function LaporanAbsensi() {
                       <input
                         type="time"
                         value={sesi.jam_mulai}
+                        disabled={useDefaultSesi}
                         onChange={(e) =>
                           handleSesiChange(sesi.id, "jam_mulai", e.target.value)
                         }
-                        className="flex-1 bg-white border border-slate-300 rounded-md px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
+                        className="flex-1 bg-white border border-slate-300 rounded-md px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                       />
                       <span className="text-xs text-slate-400">-</span>
                       <input
                         type="time"
                         value={sesi.jam_selesai}
+                        disabled={useDefaultSesi}
                         onChange={(e) =>
                           handleSesiChange(
                             sesi.id,
@@ -404,7 +472,7 @@ export default function LaporanAbsensi() {
                             e.target.value,
                           )
                         }
-                        className="flex-1 bg-white border border-slate-300 rounded-md px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
+                        className="flex-1 bg-white border border-slate-300 rounded-md px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -424,7 +492,7 @@ export default function LaporanAbsensi() {
         </div>
 
         {/* KOLOM KANAN: PENCARIAN PINTAR & TABEL DATA HARIAN */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[550px]">
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[650px]">
           <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
               <h2 className="text-sm font-bold text-slate-700">

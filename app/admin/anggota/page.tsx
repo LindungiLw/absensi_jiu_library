@@ -53,10 +53,14 @@ const PULAU_OPTIONS = [
   "Maluku",
 ];
 
+// 🔥 GLOBAL CACHE (Di Luar Komponen):
+// Agar memori tidak hilang meskipun admin bolak-balik pindah menu (Dashboard/Laporan/dll)
+let globalAnggotaCache: Record<string, any> = {};
+
 export default function ManajemenAnggota() {
   const [anggotaList, setAnggotaList] = useState<Anggota[]>([]);
 
-  // 🔥 SEPARATED UX LOADING STATES
+  // SEPARATED UX LOADING STATES
   const [loadingList, setLoadingList] = useState(false);
   const [submittingManual, setSubmittingManual] = useState(false);
   const [uploadingExcel, setUploadingExcel] = useState(false);
@@ -119,10 +123,22 @@ export default function ManajemenAnggota() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const roleQuery = activeTab.toLowerCase();
+    const cacheKey = `${roleQuery}-${currentPage}-${searchQuery}`;
+
+    // 🚀 LOGIKA MEMORI INSTAN: Gunakan data di Global Cache jika ada (Tidak reload ke database)
+    if (globalAnggotaCache[cacheKey]) {
+      setAnggotaList(globalAnggotaCache[cacheKey].data);
+      setTotalPages(globalAnggotaCache[cacheKey].totalPages);
+      if (globalAnggotaCache[cacheKey].stats)
+        setStats(globalAnggotaCache[cacheKey].stats);
+      return;
+    }
+
+    // Jika data benar-benar belum pernah ditarik, baru panggil API
     setLoadingList(true);
     const timer = setTimeout(async () => {
       try {
-        const roleQuery = activeTab.toLowerCase();
         const res = await fetch(
           `/api/anggota?page=${currentPage}&limit=${LIMIT}&search=${searchQuery}&role=${roleQuery}`,
         );
@@ -133,6 +149,13 @@ export default function ManajemenAnggota() {
           if (json.meta.stats) {
             setStats(json.meta.stats);
           }
+
+          // 💾 SIMPAN KE GLOBAL CACHE
+          globalAnggotaCache[cacheKey] = {
+            data: json.data,
+            totalPages: json.meta.totalPages || 1,
+            stats: json.meta.stats,
+          };
         }
       } catch (err) {
         setNotif({ type: "error", msg: "Koneksi server bermasalah." });
@@ -174,6 +197,33 @@ export default function ManajemenAnggota() {
       const data = await res.json();
       if (res.ok) {
         setNotif({ type: "success", msg: data.message });
+
+        // 🔥 SUNTIK DATA BARU KE MEMORI LOKAL TANPA RELOAD API
+        const newAnggota = { ...data.data, total_absensi: 0 }; // Anggota baru absensinya 0
+        const roleBaru = newAnggota.role;
+
+        // 1. Update list yang sedang dilihat (jika tab-nya sama)
+        if (activeTab.toLowerCase() === roleBaru) {
+          setAnggotaList((prev) => [newAnggota, ...prev]);
+        }
+        // 2. Update Angka Total Statistik
+        setStats((prev) => ({
+          ...prev,
+          [roleBaru]: prev[roleBaru as keyof typeof prev] + 1,
+        }));
+
+        // 3. Suntik ke dalam Global Cache secara diam-diam
+        Object.keys(globalAnggotaCache).forEach((key) => {
+          if (key.includes(roleBaru)) {
+            globalAnggotaCache[key].data = [
+              newAnggota,
+              ...globalAnggotaCache[key].data,
+            ];
+            globalAnggotaCache[key].stats[roleBaru] += 1;
+          }
+        });
+
+        // Reset form
         setFormManual({
           id_anggota: "",
           nama: "",
@@ -183,7 +233,6 @@ export default function ManajemenAnggota() {
           negara: "ID",
           pulau: "",
         });
-        setRefreshTrigger((prev) => prev + 1);
       } else {
         setNotif({ type: "error", msg: data.error });
       }
@@ -209,10 +258,24 @@ export default function ManajemenAnggota() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
+
       if (res.ok) {
         setNotif({ type: "success", msg: data.message });
         setEditModalOpen(false);
-        setRefreshTrigger((prev) => prev + 1);
+
+        // 🔥 UPDATE HANYA 1 DATA SPESIFIK DI MEMORI LOKAL TANPA RELOAD API
+        setAnggotaList((prev) =>
+          prev.map((a) =>
+            a.id_anggota === payload.id_anggota ? { ...a, ...payload } : a,
+          ),
+        );
+
+        Object.keys(globalAnggotaCache).forEach((key) => {
+          globalAnggotaCache[key].data = globalAnggotaCache[key].data.map(
+            (a: Anggota) =>
+              a.id_anggota === payload.id_anggota ? { ...a, ...payload } : a,
+          );
+        });
       } else {
         setNotif({ type: "error", msg: data.error });
       }
@@ -307,6 +370,8 @@ export default function ManajemenAnggota() {
 
         if (res.ok) {
           setNotif({ type: "success", msg: data.message });
+          // Khusus Upload Excel, kita hapus cache total karena datanya berubah masif
+          globalAnggotaCache = {};
           setRefreshTrigger((prev) => prev + 1);
         } else {
           setNotif({ type: "error", msg: data.error });
@@ -326,23 +391,55 @@ export default function ManajemenAnggota() {
       `Hapus data anggota "${nama}" beserta riwayat kunjungannya?`,
     );
     if (!confirmDelete) return;
-    setLoadingList(true); // Memicu loading eksklusif pada area tabel saja
+    setLoadingList(true);
     setNotif(null);
     try {
       const res = await fetch(`/api/anggota?id=${id}`, { method: "DELETE" });
       const data = await res.json();
       if (res.ok) {
         setNotif({ type: "success", msg: data.message });
-        setRefreshTrigger((prev) => prev + 1);
+
+        // 🔥 HAPUS 1 DATA DARI MEMORI LOKAL TANPA RELOAD API
+        const roleYangDihapus =
+          anggotaList.find((a) => a.id_anggota === id)?.role || "student";
+
+        setAnggotaList((prev) => prev.filter((a) => a.id_anggota !== id));
+        setStats((prev) => ({
+          ...prev,
+          [roleYangDihapus]: prev[roleYangDihapus as keyof typeof prev] - 1,
+        }));
+
+        Object.keys(globalAnggotaCache).forEach((key) => {
+          globalAnggotaCache[key].data = globalAnggotaCache[key].data.filter(
+            (a: Anggota) => a.id_anggota !== id,
+          );
+          if (key.includes(roleYangDihapus)) {
+            globalAnggotaCache[key].stats[roleYangDihapus] -= 1;
+          }
+        });
       } else {
         setNotif({ type: "error", msg: data.error });
-        setLoadingList(false);
       }
     } catch (err) {
       setNotif({ type: "error", msg: "Gagal menghapus data." });
+    } finally {
       setLoadingList(false);
     }
   };
+
+  // 🔥 LOGIKA PENGURUTAN (SORTING) DATA
+  const sortedAnggotaList = [...anggotaList].sort((a, b) => {
+    // Jika tab Mahasiswa, urutkan berdasarkan Batch terlama ke terbaru (Ascending)
+    if (activeTab === "Student") {
+      const batchA = a.batch ? parseInt(a.batch) : 9999;
+      const batchB = b.batch ? parseInt(b.batch) : 9999;
+      if (batchA !== batchB) {
+        return batchA - batchB; // Ascending (cth: 2022, 2023, 2024...)
+      }
+    }
+    // Jika Batch sama (atau untuk Dosen & Staff), urutkan Nama Sesuai Abjad A-Z
+    return a.nama.localeCompare(b.nama);
+  });
 
   return (
     <div className="p-4 md:p-6 space-y-4 w-full text-slate-800 relative">
@@ -599,7 +696,6 @@ export default function ManajemenAnggota() {
               </div>
             )}
 
-            {/* 🔥 BUTTON SIMPAN MANUAL: Diisolasi memakai submittingManual */}
             <div className="md:col-span-2 flex justify-end mt-1">
               <button
                 type="submit"
@@ -629,7 +725,6 @@ export default function ManajemenAnggota() {
               .
             </p>
           </div>
-          {/* 🔥 BUTTON EXCEL UPLOAD: Diisolasi memakai uploadingExcel */}
           <div className="space-y-2 relative z-10">
             <button
               onClick={handleDownloadTemplate}
@@ -701,7 +796,6 @@ export default function ManajemenAnggota() {
             </div>
           </div>
 
-          {/* 🔥 AREA TABEL DATA UTAMA: Diisolasi memakai loadingList */}
           <div className="overflow-y-auto max-h-[calc(100vh-350px)] border-b border-slate-200">
             <table className="w-full text-left text-sm whitespace-nowrap relative">
               <thead className="bg-white sticky top-0 z-20 shadow-sm">
@@ -709,25 +803,28 @@ export default function ManajemenAnggota() {
                   <th className="px-6 py-4 font-semibold">No</th>
                   <th className="px-6 py-4 font-semibold">ID Anggota</th>
                   <th className="px-6 py-4 font-semibold">Nama Lengkap</th>
+                  {activeTab === "Student" && (
+                    <th className="px-6 py-4 font-semibold">Batch</th>
+                  )}
                   <th className="px-6 py-4 font-semibold text-center">
                     Total Absensi
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {loadingList && anggotaList.length === 0 ? (
+                {loadingList && sortedAnggotaList.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={activeTab === "Student" ? 5 : 4}
                       className="px-6 py-8 text-center text-slate-500 text-xs animate-pulse font-medium"
                     >
                       Memuat data database...
                     </td>
                   </tr>
-                ) : anggotaList.length === 0 ? (
+                ) : sortedAnggotaList.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={activeTab === "Student" ? 5 : 4}
                       className="px-6 py-8 text-center text-slate-400 text-xs italic"
                     >
                       {searchQuery
@@ -736,7 +833,7 @@ export default function ManajemenAnggota() {
                     </td>
                   </tr>
                 ) : (
-                  anggotaList.map((anggota, index) => (
+                  sortedAnggotaList.map((anggota, index) => (
                     <tr
                       key={anggota.id_anggota}
                       className="hover:bg-slate-50 transition-colors group"
@@ -759,6 +856,11 @@ export default function ManajemenAnggota() {
                                 : "🇮🇩"}
                         </span>
                       </td>
+                      {activeTab === "Student" && (
+                        <td className="px-6 py-3 font-mono font-bold text-slate-500 text-xs">
+                          {anggota.batch || "-"}
+                        </td>
+                      )}
                       <td className="px-6 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <div className="bg-slate-100 text-slate-600 px-3 py-1 rounded-md font-mono text-xs font-bold border border-slate-200">
@@ -794,9 +896,6 @@ export default function ManajemenAnggota() {
             </table>
           </div>
 
-          {/* =========================================================
-              🔥 FOOTER TABEL: PAGINATION Menggunakan loadingList
-              ========================================================= */}
           <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-slate-200 bg-slate-50 gap-4 sm:gap-0">
             <div className="flex-1 flex justify-start">
               <span className="text-xs text-slate-500 font-medium bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">

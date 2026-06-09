@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
+import { cookies } from "next/headers"; // 🛡️ IMPORT KEAMANAN
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const checkToday = searchParams.get("today");
 
-  // Logika khusus untuk Scanner UI mengecek apakah hari ini libur
   if (checkToday) {
     const dateWIB = new Date(
       new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }),
@@ -20,23 +20,34 @@ export async function GET(request: Request) {
     const libur = await prisma.hariLibur.findUnique({
       where: { tanggal: todayStr },
     });
+
     return NextResponse.json({
       isLibur: !!libur,
       keterangan: libur?.keterangan || "",
     });
   }
 
-  // Tarik semua data libur untuk Admin Panel
   const allLibur = await prisma.hariLibur.findMany({
     orderBy: { tanggal: "asc" },
   });
+
   return NextResponse.json({ success: true, data: allLibur });
 }
 
 export async function POST(request: Request) {
+  // 🛡️ BLOK PELINDUNG KEAMANAN (Next.js 15 Await Fix)
+  const token = (await cookies()).get("admin_token")?.value;
+  if (!token) {
+    return NextResponse.json(
+      { error: "Akses Ditolak! Anda tidak memiliki izin (Unauthorized)." },
+      { status: 401 },
+    );
+  }
+
   try {
     const { tanggal, keterangan } = await request.json();
     await prisma.hariLibur.create({ data: { tanggal, keterangan } });
+
     return NextResponse.json({
       success: true,
       message: "Hari libur berhasil diset!",
@@ -50,9 +61,19 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  // 🛡️ BLOK PELINDUNG KEAMANAN (Next.js 15 Await Fix)
+  const token = (await cookies()).get("admin_token")?.value;
+  if (!token) {
+    return NextResponse.json(
+      { error: "Akses Ditolak! Anda tidak memiliki izin (Unauthorized)." },
+      { status: 401 },
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+
     await prisma.hariLibur.delete({ where: { id: Number(id) } });
     return NextResponse.json({ success: true });
   } catch (error) {

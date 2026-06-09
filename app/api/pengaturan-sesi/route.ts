@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
+import { cookies } from "next/headers"; // 🛡️ IMPORT KEAMANAN
 
 export const dynamic = "force-dynamic";
 
-// Nilai Default sesuai settingan lama
 const defaultSesi = [
   { nama_sesi: "Pagi", jam_mulai: "08:00", jam_selesai: "11:59" },
   { nama_sesi: "Siang", jam_mulai: "13:00", jam_selesai: "16:59" },
@@ -14,7 +14,6 @@ export async function GET() {
   try {
     let sesi = await prisma.pengaturanSesi.findMany({ orderBy: { id: "asc" } });
 
-    // Cerdas: Jika tabel masih kosong, otomatis masukkan nilai default!
     if (sesi.length === 0) {
       await prisma.pengaturanSesi.createMany({ data: defaultSesi });
       sesi = await prisma.pengaturanSesi.findMany({ orderBy: { id: "asc" } });
@@ -30,10 +29,18 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  try {
-    const payload = await request.json(); // Array berisi {id, jam_mulai, jam_selesai}
+  // 🛡️ BLOK PELINDUNG KEAMANAN (Next.js 15 Await Fix)
+  const token = (await cookies()).get("admin_token")?.value;
+  if (!token) {
+    return NextResponse.json(
+      { error: "Akses Ditolak! Anda tidak memiliki izin (Unauthorized)." },
+      { status: 401 },
+    );
+  }
 
-    // Simpan semua perubahan sekaligus menggunakan Transaction
+  try {
+    const payload = await request.json();
+
     const updatePromises = payload.map((s: any) =>
       prisma.pengaturanSesi.update({
         where: { id: s.id },
@@ -42,6 +49,7 @@ export async function PUT(request: Request) {
     );
 
     await prisma.$transaction(updatePromises);
+
     return NextResponse.json({
       success: true,
       message: "Jam operasional berhasil diperbarui!",

@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
+import { cookies } from "next/headers"; // 🛡️ IMPORT KEAMANAN NEXT.JS 15
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  // 🛡️ BLOK PELINDUNG KEAMANAN: Mengunci data log presensi dari publik 🔒
+  const token = (await cookies()).get("admin_token")?.value;
+  if (!token) {
+    return NextResponse.json(
+      { error: "Akses Ditolak! Anda tidak memiliki izin (Unauthorized)." },
+      { status: 401 },
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
 
@@ -14,29 +24,26 @@ export async function GET(request: Request) {
 
     let whereClause: any = {};
 
-    // 1. Jika minta data untuk 1 HARI SPESIFIK (Sangat Ringan)
+    // 1. Jika minta data untuk 1 HARI SPESIFIK
     if (date) {
       whereClause.tanggal = date;
     }
-    // 2. Jika minta data RENTANG WAKTU (Semesteran / Tahunan)
+    // 2. Jika minta data RENTANG WAKTU
     else if (startDate && endDate) {
       whereClause.tanggal = {
-        gte: startDate, // Lebih besar atau sama dengan Start
-        lte: endDate, // Lebih kecil atau sama dengan End
+        gte: startDate,
+        lte: endDate,
       };
     }
 
     // 3. LOGIKA PEMBATAS CERDAS (SMART LIMIT)
-    // Jika untuk Excel atau Harian, JANGAN DIBATASI (Ambil 100% data)!
-    // Tapi jika ini tarikan bebas dari Dashboard (tanpa filter), batasi 3000 agar server aman.
     const shouldLimit = !date && !isExport && (!startDate || !endDate);
 
-    // Tarik data dengan efisien dari Database
     const dataAbsen = await prisma.kehadiran.findMany({
       where: whereClause,
       orderBy: { waktu: "desc" },
       include: { anggota: true },
-      ...(shouldLimit ? { take: 3000 } : {}), // Pasang rem darurat hanya jika perlu
+      ...(shouldLimit ? { take: 3000 } : {}),
     });
 
     const dataFormatted = dataAbsen.map((log: any) => ({

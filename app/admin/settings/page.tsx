@@ -102,7 +102,7 @@ export default function PengaturanKiosk() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2">
         <div>
           <h1 className="text-2xl font-black text-blue-800">
-            PENGATURAN PIN STASIUN KIOSK
+            PENGATURAN USER SCANNER
           </h1>
           <p className="text-slate-500 text-xs mt-0.5">
             Kelola akun dan PIN otoritas pembuka mesin scanner presensi.
@@ -121,17 +121,17 @@ export default function PengaturanKiosk() {
         {/* FORM KIRI: BUAT AKUN PETUGAS */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm h-fit">
           <h2 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-            🔑 Tambah Otoritas Kiosk
+            Tambah Otoritas User Scanner
           </h2>
           <form onSubmit={handleTambahPetugas} className="space-y-4">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide px-0.5">
-                Username / ID Staf
+                Username / ID
               </label>
               <input
                 type="text"
                 required
-                placeholder="Cth: petugas_pagi atau email"
+                placeholder="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.trim())}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 transition-all text-slate-800 shadow-inner"
@@ -158,7 +158,7 @@ export default function PengaturanKiosk() {
               disabled={submitting || pin.length !== 6}
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
             >
-              {submitting ? "Menyimpan..." : "+ Daftarkan Petugas"}
+              {submitting ? "Menyimpan..." : "Buat Akses"}
             </button>
           </form>
         </div>
@@ -167,7 +167,7 @@ export default function PengaturanKiosk() {
         <div className="md:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
           <div className="bg-slate-50 border-b border-slate-200 px-5 py-3">
             <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-              Daftar Aktif Petugas Kiosk
+              Daftar Aktif Akses Scanner
             </h3>
           </div>
           <div className="overflow-x-auto">
@@ -196,7 +196,7 @@ export default function PengaturanKiosk() {
                       colSpan={4}
                       className="px-6 py-6 text-center text-slate-400 italic"
                     >
-                      Belum ada akun petugas terdaftar. Kiosk terkunci penuh.
+                      Belum ada akun akses terdaftar
                     </td>
                   </tr>
                 ) : (

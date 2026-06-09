@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
+import { cookies } from "next/headers"; // 🛡️ IMPORT KEAMANAN NEXT.JS 15
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // 🛡️ BLOK PELINDUNG KEAMANAN: Mengunci visualisasi grafik dari publik 🔒
+  const token = (await cookies()).get("admin_token")?.value;
+  if (!token) {
+    return NextResponse.json(
+      { error: "Akses Ditolak! Anda tidak memiliki izin (Unauthorized)." },
+      { status: 401 },
+    );
+  }
+
   try {
     const today = new Date();
     const sixMonthsAgo = new Date();
@@ -19,9 +29,7 @@ export async function GET() {
     const todayStr = formatDate(today);
     const startStr = formatDate(sixMonthsAgo);
 
-    // ==============================================================
-    // 1. DATA KUNJUNGAN HARI INI (Hanya narik data 1 hari, sangat ringan)
-    // ==============================================================
+    // 1. DATA KUNJUNGAN HARI INI
     const [totalHadir, hadirMahasiswa] = await Promise.all([
       prisma.kehadiran.count({
         where: { tanggal: todayStr },
@@ -29,20 +37,18 @@ export async function GET() {
       prisma.kehadiran.count({
         where: {
           tanggal: todayStr,
-          anggota: { role: "student" }, // Langsung filter dari database!
+          anggota: { role: "student" },
         },
       }),
     ]);
 
     const hadirStaff = totalHadir - hadirMahasiswa;
 
-    // ==============================================================
-    // 2. DATA GRAFIK 6 BULAN (Super Kilat pakai GROUP BY Database)
-    // ==============================================================
+    // 2. DATA GRAFIK 6 BULAN
     const rekapGrafik = await prisma.kehadiran.groupBy({
       by: ["tanggal"],
       _count: {
-        id_anggota: true, // Hanya menghitung jumlah baris, bukan menarik isi datanya
+        id_anggota: true,
       },
       where: {
         tanggal: {
@@ -52,16 +58,13 @@ export async function GET() {
       },
     });
 
-    // ==============================================================
-    // 3. TOTAL ANGGOTA TERDAFTAR DI DATABASE (Berjalan Paralel)
-    // ==============================================================
+    // 3. TOTAL ANGGOTA TERDAFTAR DI DATABASE
     const [totalStudent, totalLecturer, totalStaff] = await Promise.all([
       prisma.anggota.count({ where: { role: "student" } }),
       prisma.anggota.count({ where: { role: "lecturer" } }),
       prisma.anggota.count({ where: { role: "staff" } }),
     ]);
 
-    // Kembalikan JSON berukuran sangat kecil (hanya beberapa Kilobyte)
     return NextResponse.json({
       success: true,
       data: {

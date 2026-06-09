@@ -20,6 +20,10 @@ import {
   ReportIcon,
 } from "../components/icons/LibraryIcons";
 
+// 🔥 GLOBAL CACHE (Di Luar Komponen)
+// Menyimpan semua hasil kalkulasi grafik dan total angka agar instan saat bolak-balik menu
+let globalDashboardCache: any = null;
+
 export default function DashboardUtama() {
   const [chartData1W, setChartData1W] = useState<any[]>([]);
   const [chartData1M, setChartData1M] = useState<any[]>([]);
@@ -30,7 +34,7 @@ export default function DashboardUtama() {
   const [hadirMahasiswa, setHadirMahasiswa] = useState(0);
   const [hadirStaff, setHadirStaff] = useState(0);
 
-  // 🔥 STATE BARU: Total Anggota Terdaftar di Database
+  // State Total Anggota Terdaftar di Database
   const [totalStudentReg, setTotalStudentReg] = useState(0);
   const [totalLecturerReg, setTotalLecturerReg] = useState(0);
   const [totalStaffReg, setTotalStaffReg] = useState(0);
@@ -47,27 +51,54 @@ export default function DashboardUtama() {
     return () => clearTimeout(timer);
   }, []);
 
-  const fetchDashboardData = async () => {
+  // 🔥 Fungsi tarik data dengan parameter "forceRefresh"
+  const fetchDashboardData = async (forceRefresh = false) => {
+    // 1. CEK GLOBAL CACHE: Jika data sudah ada dan tidak dipaksa refresh, pakai cache!
+    if (!forceRefresh && globalDashboardCache) {
+      const cache = globalDashboardCache;
+      setTotalHadir(cache.totalHadir);
+      setHadirMahasiswa(cache.hadirMahasiswa);
+      setHadirStaff(cache.hadirStaff);
+
+      setTotalStudentReg(cache.totalStudentReg);
+      setTotalLecturerReg(cache.totalLecturerReg);
+      setTotalStaffReg(cache.totalStaffReg);
+
+      setChartData1W(cache.chartData1W);
+      setChartData1M(cache.chartData1M);
+      setChartData6M(cache.chartData6M);
+
+      setLastUpdated(cache.lastUpdated);
+      setLoading(false);
+      return; // Stop di sini, tidak perlu tembak API database lagi
+    }
+
     setLoading(true);
     try {
-      // HANYA 1x PANGGILAN API UNTUK SELURUH DASHBOARD! ⚡
+      // HANYA PANGGIL API JIKA CACHE KOSONG ATAU TOMBOL REFRESH DITEKAN ⚡
       const res = await fetch("/api/dashboard");
       const json = await res.json();
 
       if (json.success) {
         const dashboardData = json.data;
 
-        // 1. SET STATE KUNJUNGAN HARI INI
-        setTotalHadir(dashboardData.hariIni.total);
-        setHadirMahasiswa(dashboardData.hariIni.mahasiswa);
-        setHadirStaff(dashboardData.hariIni.staff);
+        // SET STATE KUNJUNGAN HARI INI
+        const tHadir = dashboardData.hariIni.total;
+        const hMhs = dashboardData.hariIni.mahasiswa;
+        const hStaff = dashboardData.hariIni.staff;
+        setTotalHadir(tHadir);
+        setHadirMahasiswa(hMhs);
+        setHadirStaff(hStaff);
 
-        // 2. SET STATE TOTAL ANGGOTA DATABASE
-        setTotalStudentReg(dashboardData.database.student);
-        setTotalLecturerReg(dashboardData.database.lecturer);
-        setTotalStaffReg(dashboardData.database.staff);
+        // SET STATE TOTAL ANGGOTA DATABASE
+        const tStudent = dashboardData.database.student;
+        const tLecturer = dashboardData.database.lecturer;
+        const tStaff = dashboardData.database.staff;
+        setTotalStudentReg(tStudent);
+        setTotalLecturerReg(tLecturer);
+        setTotalStaffReg(tStaff);
 
-        // 3. PROSES GRAFIK (Isi tanggal yang kosong/hari libur dengan angka 0)
+        // PROSES GRAFIK
         const today = new Date();
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setDate(today.getDate() - 180);
@@ -110,19 +141,34 @@ export default function DashboardUtama() {
             };
           });
 
-        // 4. POTONG ARRAY UNTUK 3 GRAFIK
-        setChartData6M(chartDataUtuh);
-        setChartData1M(chartDataUtuh.slice(-30));
-        setChartData1W(chartDataUtuh.slice(-7));
+        const c6M = chartDataUtuh;
+        const c1M = chartDataUtuh.slice(-30);
+        const c1W = chartDataUtuh.slice(-7);
+        setChartData6M(c6M);
+        setChartData1M(c1M);
+        setChartData1W(c1W);
 
-        // 5. UPDATE JAM TERAKHIR SINKRONISASI
-        setLastUpdated(
-          new Date().toLocaleTimeString("id-ID", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          }),
-        );
+        // UPDATE JAM TERAKHIR SINKRONISASI
+        const timeUpdate = new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+        setLastUpdated(timeUpdate);
+
+        // 💾 SIMPAN SEMUA HASIL KE GLOBAL CACHE
+        globalDashboardCache = {
+          totalHadir: tHadir,
+          hadirMahasiswa: hMhs,
+          hadirStaff: hStaff,
+          totalStudentReg: tStudent,
+          totalLecturerReg: tLecturer,
+          totalStaffReg: tStaff,
+          chartData1W: c1W,
+          chartData1M: c1M,
+          chartData6M: c6M,
+          lastUpdated: timeUpdate,
+        };
       }
     } catch (error) {
       console.error("Gagal menarik data dashboard", error);
@@ -132,7 +178,7 @@ export default function DashboardUtama() {
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(false); // Mount pertama kali: Coba pakai cache dulu
   }, []);
 
   // KOMPONEN MINI CHART DENGAN FIX 99% WIDTH
@@ -227,7 +273,7 @@ export default function DashboardUtama() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-2xl font-black text-blue-800">COMMAND CENTER</h1>
+          <h1 className="text-2xl font-black text-blue-800">DASHBOARD</h1>
           <p className="text-slate-500 text-xs mt-1">
             Data statistik absensi dan keanggotaan JIU Library.
           </p>
@@ -238,8 +284,9 @@ export default function DashboardUtama() {
               Update: {lastUpdated} WIB
             </div>
           )}
+          {/* 🔥 TOMBOL REFRESH MEMAKSA SINKRONISASI KE DATABASE (forceRefresh = true) */}
           <button
-            onClick={fetchDashboardData}
+            onClick={() => fetchDashboardData(true)}
             disabled={loading}
             className="w-full sm:w-auto px-4 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border border-blue-200 rounded-lg text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
