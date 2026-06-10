@@ -11,7 +11,7 @@ export async function POST() {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge: 0, // Detik ini juga langsung hangus
+    maxAge: 0, // langsung hangus
     path: "/",
   });
 

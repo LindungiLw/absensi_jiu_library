@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
-import { cookies } from "next/headers"; // 🛡️ IMPORT KEAMANAN
+import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
-  // 🛡️ BLOK PELINDUNG KEAMANAN (Next.js 15 Await Fix)
+  // BLOK PELINDUNG KEAMANAN
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) {
     return NextResponse.json(
@@ -134,9 +134,8 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    // ==============================================================
-    // 🔥 OPTIMASI PERFORMA UTAMAKAN KECEPATAN (JAN-JUN & JUL-DES)
-    // ==============================================================
+    // OPTIMASI PERFORMA UTAMAKAN KECEPATAN (JAN-JUN & JUL-DES)
+
     const currentMonth = wibTime.getMonth() + 1;
     const currentYearNum = wibTime.getFullYear();
     let semStartDate = "";
@@ -150,7 +149,7 @@ export async function POST(request: Request) {
       semEndDate = `${currentYearNum}-12-31`;
     }
 
-    // 1. Hitung berapa kali SAYA sudah berkunjung di SEMESTER KALENDER INI
+    // 1. Hitung berapa kali sudah berkunjung di semester ini
     const myCurrentSemesterVisits = await prisma.kehadiran.count({
       where: {
         id_anggota: anggota.id_anggota,
@@ -158,8 +157,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // 2. Kueri Ringan Teroptimasi: Menambahkan klausa 'having' agar database HANYA
-    // mengambil data orang yang total kehadirannya LEBIH TINGGI atau SAMA dengan saya.
+    // mengambil data orang yang total kehadirannya LEBIH TINGGI atau SAMA.
     const groupResults = await prisma.kehadiran.groupBy({
       by: ["id_anggota"],
       where: {
@@ -179,7 +177,7 @@ export async function POST(request: Request) {
     let orangLebihRajin = 0;
     let orangPoinSamaLebihSenior = 0;
 
-    // Proses perulangan kini jauh lebih sedikit karena data sudah disaring ketat di level database
+    // Proses perulangan jauh lebih sedikit karena data sudah disaring ketat di level database
     for (let i = 0; i < groupResults.length; i++) {
       const g = groupResults[i];
       if (g.id_anggota === anggota.id_anggota) continue;
@@ -197,7 +195,6 @@ export async function POST(request: Request) {
     }
 
     const rankingSaatIni = orangLebihRajin + orangPoinSamaLebihSenior + 1;
-    // ==============================================================
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
-import { cookies } from "next/headers"; // 🛡️ IMPORT KEAMANAN
+import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  // 🛡️ BLOK PELINDUNG KEAMANAN (Next.js 15 Await Fix)
+  // BLOK PELINDUNG KEAMANAN
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) {
     return NextResponse.json(
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  // 🛡️ BLOK PELINDUNG KEAMANAN (Next.js 15 Await Fix)
+  // BLOK PELINDUNG KEAMANAN
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) {
     return NextResponse.json(

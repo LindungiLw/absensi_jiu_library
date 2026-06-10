@@ -1,9 +1,9 @@
-"use client"; // Wajib ditambahkan agar bisa menggunakan state/effect
+"use client";
 
 import React, { useMemo, useState, useEffect } from "react";
 
 export default function BookBackground() {
-  // 🔥 TRIK ANTI HYDRATION ERROR: Menahan render acak sampai di Client (Browser)
+  // TRIK ANTI HYDRATION ERROR: Menahan render acak sampai di Client (Browser)
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -60,9 +60,8 @@ export default function BookBackground() {
 
   return (
     <div className="bb-scene">
-      {/* ========================================================= */}
       {/* RENDER ACAK HANYA JIKA SUDAH DI BROWSER (Mencegah Error)  */}
-      {/* ========================================================= */}
+
       {isMounted && (
         <>
           {/* A. Teks Mengetik (Typewriter) */}
@@ -173,9 +172,8 @@ export default function BookBackground() {
         </>
       )}
 
-      {/* ========================================================= */}
       {/* BUKU HOLOGRAPHIC (Dirender dari awal tanpa masalah)       */}
-      {/* ========================================================= */}
+
       <div
         style={{
           transform: "scale(1.6) translateY(5%)",

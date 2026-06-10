@@ -2,7 +2,7 @@ import React from "react";
 
 const BaseIcon = ({
   children,
-  className = "w-5 h-5", // Default ukuran diperkecil sedikit agar pas di tabel
+  className = "w-5 h-5",
 }: {
   children: React.ReactNode;
   className?: string;

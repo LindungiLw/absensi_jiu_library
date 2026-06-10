@@ -27,7 +27,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // 🔥 Redirect & Refresh agar cookie terbaca di sisi server
+        // Redirect & Refresh agar cookie terbaca di sisi server
         router.push("/admin");
         router.refresh();
       } else {
@@ -60,7 +60,7 @@ export default function LoginPage() {
           <input
             type="email"
             required
-            autoComplete="email" // 🔥 Penting untuk browser
+            autoComplete="email" // Penting untuk browser
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={loading}
@@ -71,7 +71,7 @@ export default function LoginPage() {
           <input
             type="password"
             required
-            autoComplete="current-password" // 🔥 Penting untuk browser
+            autoComplete="current-password" // Penting untuk browser
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}

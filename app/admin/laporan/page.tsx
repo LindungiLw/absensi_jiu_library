@@ -8,7 +8,6 @@ import {
   DownloadIcon,
 } from "@/app/components/icons/LibraryIcons";
 
-// 🔥 GLOBAL CACHE (Di Luar Komponen)
 // Menyimpan memori laporan harian dan pengaturan agar tidak reload saat bolak-balik menu
 let globalLaporanCache: {
   master: { libur: any[]; sesi: any[] } | null;
@@ -21,9 +20,6 @@ let globalLaporanCache: {
 export default function LaporanAbsensi() {
   const [loading, setLoading] = useState(true);
 
-  // ==============================================================
-  // MENGGUNAKAN ZONA WAKTU JAKARTA SECARA PAKSA BUKAN UTC (ANTI-TIME TRAVEL BUG)
-  // ==============================================================
   const getWIBDate = () => {
     const d = new Date(
       new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }),
@@ -60,7 +56,7 @@ export default function LaporanAbsensi() {
   // State Pengendali Open/Close Custom Dropdown Kategori Download
   const [openRoleDownload, setOpenRoleDownload] = useState(false);
 
-  // 🔥 FUNGSI TARIK MASTER DATA (DENGAN SMART CACHE)
+  // FUNGSI TARIK MASTER DATA (DENGAN SMART CACHE)
   const fetchMasterData = async (forceRefresh = false) => {
     // 1. Cek apakah master data (Libur & Sesi) sudah ada di memori
     if (!forceRefresh && globalLaporanCache.master) {
@@ -84,7 +80,7 @@ export default function LaporanAbsensi() {
         setLiburList(jsonLibur.data);
         setSesiWaktu(jsonSesi.data);
 
-        // 💾 Simpan ke Global Cache
+        // Simpan ke Global Cache
         globalLaporanCache.master = {
           libur: jsonLibur.data,
           sesi: jsonSesi.data,
@@ -101,7 +97,7 @@ export default function LaporanAbsensi() {
     fetchMasterData();
   }, []);
 
-  // 🔥 EFEK UNTUK PENCARIAN TANGGAL HARIAN (DENGAN MEMORI INSTAN)
+  // EFEK UNTUK PENCARIAN TANGGAL HARIAN (DENGAN MEMORI INSTAN)
   useEffect(() => {
     const fetchHarian = async () => {
       // 1. Cek apakah data di tanggal ini sudah pernah dicari sebelumnya?
@@ -128,9 +124,6 @@ export default function LaporanAbsensi() {
     fetchHarian();
   }, [searchDate]);
 
-  // ==============================================================
-  // EXCEL GENERATOR (TIDAK DI CACHE KARENA EXPORT BEBAS RENTANG)
-  // ==============================================================
   const handleDownloadExcel = async () => {
     if (exportStartDate > exportEndDate) {
       alert("Tanggal Mulai tidak boleh lebih besar dari Tanggal Akhir!");
@@ -216,12 +209,12 @@ export default function LaporanAbsensi() {
     });
     setTglLibur("");
     setKetLibur("");
-    fetchMasterData(true); // 🔥 Paksa Refresh Cache Master
+    fetchMasterData(true); // Paksa Refresh Cache Master
   };
 
   const handleHapusLibur = async (id: number) => {
     await fetch(`/api/libur?id=${id}`, { method: "DELETE" });
-    fetchMasterData(true); // 🔥 Paksa Refresh Cache Master
+    fetchMasterData(true); //  Paksa Refresh Cache Master
   };
 
   const handleUpdateJamOperasional = async () => {
@@ -232,7 +225,7 @@ export default function LaporanAbsensi() {
       body: JSON.stringify(sesiWaktu),
     });
     setLoadingSesi(false);
-    fetchMasterData(true); // 🔥 Paksa Refresh Cache Master
+    fetchMasterData(true); // Paksa Refresh Cache Master
     alert("Jam operasional berhasil diperbarui!");
   };
 

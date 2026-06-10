@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
-import { cookies } from "next/headers"; // 🛡️ IMPORT KEAMANAN
+import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
-// ==============================================================
-// 1. MENGAMBIL DATA ANGGOTA (SEKARANG AMAN & SORTING GLOBAL 🔒)
-// ==============================================================
+// 1. MENGAMBIL DATA ANGGOTA (SEKARANG AMAN & SORTING GLOBAL DARI DATABASE)
 export async function GET(request: Request) {
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) {
@@ -37,7 +35,6 @@ export async function GET(request: Request) {
       whereClause.role = role;
     }
 
-    // 🔥 SORTING GLOBAL DARI DATABASE:
     // Jika Student: Urutkan berdasarkan Batch (Ascending) DULU, baru Nama A-Z.
     // Jika Dosen/Staff: Langsung Nama A-Z.
     const orderByClause =
@@ -95,9 +92,8 @@ export async function GET(request: Request) {
   }
 }
 
-// ==============================================================
 // 2. MENAMBAH / IMPORT ANGGOTA
-// ==============================================================
+
 export async function POST(request: Request) {
   const token = (await cookies()).get("admin_token")?.value;
   if (!token)
@@ -174,9 +170,7 @@ export async function POST(request: Request) {
   }
 }
 
-// ==========================================
 // 3. MENGHAPUS ANGGOTA (BISA MASSAL)
-// ==========================================
 export async function DELETE(request: Request) {
   const token = (await cookies()).get("admin_token")?.value;
   if (!token)
@@ -217,9 +211,8 @@ export async function DELETE(request: Request) {
   }
 }
 
-// ==========================================
 // 4. MENGUPDATE DATA ANGGOTA
-// ==========================================
+
 export async function PUT(request: Request) {
   const token = (await cookies()).get("admin_token")?.value;
   if (!token)

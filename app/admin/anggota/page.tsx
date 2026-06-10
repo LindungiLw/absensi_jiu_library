@@ -58,7 +58,7 @@ let globalAnggotaCache: Record<string, any> = {};
 export default function ManajemenAnggota() {
   const [anggotaList, setAnggotaList] = useState<Anggota[]>([]);
 
-  // 🔥 STATE UNTUK CHECKBOX HAPUS MASSAL
+  //  STATE UNTUK CHECKBOX HAPUS MASSAL
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // SEPARATED UX LOADING STATES
@@ -384,7 +384,7 @@ export default function ManajemenAnggota() {
     }
   };
 
-  // 🔥 FUNGSI HAPUS MASSAL CHECKBOX
+  // FUNGSI HAPUS MASSAL CHECKBOX
   const handleBulkDelete = async () => {
     const confirmDelete = window.confirm(
       `Yakin ingin menghapus ${selectedIds.length} data anggota terpilih? Riwayat absen mereka juga akan ikut terhapus.`,
@@ -571,6 +571,7 @@ export default function ManajemenAnggota() {
               <div className="hidden md:block"></div>
             )}
 
+            {/* 3. CUSTOM DROPDOWN: Pilih Angkatan */}
             {formManual.role === "student" && (
               <div className="relative">
                 <input
@@ -604,7 +605,7 @@ export default function ManajemenAnggota() {
               </div>
             )}
 
-            {/* 3. CUSTOM DROPDOWN: Negara */}
+            {/* 4. CUSTOM DROPDOWN: Negara */}
             <div className="relative">
               <button
                 type="button"
@@ -642,7 +643,7 @@ export default function ManajemenAnggota() {
               )}
             </div>
 
-            {/* 4. CUSTOM DROPDOWN: Pulau */}
+            {/* 5. CUSTOM DROPDOWN: Pulau */}
             {formManual.negara === "ID" && (
               <div className="relative">
                 <button
@@ -772,6 +773,7 @@ export default function ManajemenAnggota() {
             </div>
 
             <div className="flex w-full sm:w-auto gap-2">
+
               {/* TOMBOL HAPUS MASSAL MUNCUL JIKA ADA YANG DICENTANG */}
               {selectedIds.length > 0 && (
                 <button
@@ -803,6 +805,7 @@ export default function ManajemenAnggota() {
             <table className="w-full text-left text-sm whitespace-nowrap relative">
               <thead className="bg-white sticky top-0 z-20 shadow-sm">
                 <tr className="text-slate-400 font-mono text-xs uppercase tracking-wider border-b border-slate-200">
+
                   {/* HEADER CHECKBOX MASSAL */}
                   <th className="px-4 py-4 w-10 text-center">
                     <input
@@ -826,6 +829,7 @@ export default function ManajemenAnggota() {
                   </th>
                 </tr>
               </thead>
+
               {/* EFEK VISUAL LOADING (OPACITY) SAAT PROSES PAGINATION */}
               <tbody
                 className={`divide-y divide-slate-100 transition-opacity duration-300 ${loadingList ? "opacity-30 pointer-events-none" : "opacity-100"}`}
@@ -1010,7 +1014,8 @@ export default function ManajemenAnggota() {
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {/* 5. CUSTOM DROPDOWN: Role (Modal) */}
+
+                {/* 6. CUSTOM DROPDOWN: Role (Modal) */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">
                     Role
@@ -1093,7 +1098,8 @@ export default function ManajemenAnggota() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {/* 6. CUSTOM DROPDOWN: Negara (Modal) */}
+
+                {/* 7. CUSTOM DROPDOWN: Negara (Modal) */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">
                     Negara
@@ -1139,7 +1145,7 @@ export default function ManajemenAnggota() {
                   </div>
                 </div>
 
-                {/* 7. CUSTOM DROPDOWN: Pulau (Modal) */}
+                {/* 8. CUSTOM DROPDOWN: Pulau (Modal) */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">
                     Pulau (ID)

@@ -4,10 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./animations.css";
 import Card3D from "./Card3D";
-import BookBackground from "./BookBackground"; // 🔥 Ikon & Buku melayang dipertahankan
+import BookBackground from "./BookBackground";
 import { HandTapIcon } from "./components/icons/LibraryIcons";
-
-// Import Komponen Terpisah
 import KioskLockScreen from "./components/KioskLockScreen";
 import KioskClosedScreen from "./components/KioskClosedScreen";
 
@@ -255,7 +253,7 @@ export default function HalamanAbsensi() {
     <main
       className={`${plusJakartaSans.className} min-h-screen bg-white text-slate-800 flex flex-col items-center justify-center p-4 relative overflow-hidden select-none`}
     >
-      {/* 🔒 TOMBOL LOCK SYSTEM INSTAN */}
+      {/* TOMBOL LOCK SYSTEM INSTAN */}
       <div className="absolute top-4 right-4 z-50">
         <button
           onClick={handleLockKiosk}
@@ -265,7 +263,7 @@ export default function HalamanAbsensi() {
         </button>
       </div>
 
-      {/* 📚 ANIMASI BUKU & KATA-KATA MELAYANG */}
+      {/* ANIMASI BUKU & KATA-KATA MELAYANG */}
       <BookBackground />
 
       {showSuccessAnim && (
@@ -374,7 +372,7 @@ export default function HalamanAbsensi() {
         <div className="w-full max-w-md mx-auto relative z-20">
           {logTerakhir ? (
             <div className="flex flex-col animate-in fade-in slide-in-from-bottom-3 duration-500">
-              {/* 🏆 DATA DARI DATABASE DIKEMBALIKAN UTUH TANPA ADANYA TYPO VARIABEL */}
+              {/* DATA DARI DATABASE DIKEMBALIKAN UTUH TANPA ADANYA TYPO VARIABEL */}
               <div className="flex flex-col items-center justify-center mb-5">
                 <span className="text-sm font-black text-slate-500 bg-slate-100 px-3 py-1 rounded-full uppercase tracking-[0.2em] shadow-sm">
                   {logTerakhir.role === "student"
@@ -403,7 +401,7 @@ export default function HalamanAbsensi() {
                       </p>
                     </div>
                   </div>
-                  {/* ⏱️ BAGIAN KANAN: HANYA MENAMPILKAN SESI */}
+                  {/* BAGIAN KANAN: HANYA MENAMPILKAN SESI */}
                   <div className="text-right flex flex-col items-end justify-center">
                     <span className="text-[10px] uppercase font-black bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md border border-blue-100 shadow-sm">
                       {logTerakhir.sesi}

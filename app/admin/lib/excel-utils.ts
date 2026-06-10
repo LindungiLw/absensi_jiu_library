@@ -6,7 +6,6 @@ export const generateCustomExcel = (data: any[], fileName: string) => {
     return;
   }
 
-  // 🔥 PERBAIKAN: Beri tanda petik tunggal di depan ID agar 0 tidak hilang di Excel
   const safeData = data.map((row) => {
     const newRow = { ...row };
     if (newRow["ID Anggota"]) {

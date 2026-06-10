@@ -59,7 +59,7 @@ export default function AdminLayout({
     },
   ];
 
-  // 🔥 FUNGSI LOGOUT AMAN: Hancurkan sesi di server & Kunci navigasi Client
+  // LOGOUT: Hancurkan sesi di server & Kunci navigasi Client
   const handleLogout = async () => {
     const confirmLogout = window.confirm(
       "Apakah Anda yakin ingin keluar dari Admin Panel dan mengunci sistem?",
@@ -117,7 +117,7 @@ export default function AdminLayout({
           })}
         </nav>
 
-        {/* 🔥 AREA BAWAH SIDEBAR: SATU TOMBOL UNTUK KEAMANAN TOTAL */}
+        {/*  AREA BAWAH SIDEBAR: SATU TOMBOL UNTUK KEAMANAN TOTAL */}
         <div className="mt-8 border-t border-slate-100 pt-4">
           <button
             onClick={handleLogout}

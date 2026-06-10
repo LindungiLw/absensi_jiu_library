@@ -6,7 +6,6 @@ export default function Card3D({ children }: { children: React.ReactNode }) {
       className="relative w-full max-w-2xl mx-auto z-10"
       style={{ perspective: "1200px" }}
     >
-      {/* KARTU UTAMA: PUTIH SOLID DENGAN SHADOW KUAT AGAR JADI PUSAT PERHATIAN */}
       <div
         className="relative z-10 w-full bg-white/95 backdrop-blur-md border border-slate-200 rounded-3xl p-8 md:p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]"
         style={{

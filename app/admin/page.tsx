@@ -12,15 +12,11 @@ import {
 } from "recharts";
 
 import {
-  UserIcon,
-  GradCapIcon,
-  BriefcaseIcon,
   ChartIcon,
   UsersIcon,
   ReportIcon,
 } from "../components/icons/LibraryIcons";
 
-// 🔥 GLOBAL CACHE (Di Luar Komponen)
 // Menyimpan semua hasil kalkulasi grafik dan total angka agar instan saat bolak-balik menu
 let globalDashboardCache: any = null;
 
@@ -51,7 +47,7 @@ export default function DashboardUtama() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 🔥 Fungsi tarik data dengan parameter "forceRefresh"
+  //  Fungsi tarik data dengan parameter "forceRefresh"
   const fetchDashboardData = async (forceRefresh = false) => {
     // 1. CEK GLOBAL CACHE: Jika data sudah ada dan tidak dipaksa refresh, pakai cache!
     if (!forceRefresh && globalDashboardCache) {
@@ -75,7 +71,7 @@ export default function DashboardUtama() {
 
     setLoading(true);
     try {
-      // HANYA PANGGIL API JIKA CACHE KOSONG ATAU TOMBOL REFRESH DITEKAN ⚡
+      // HANYA PANGGIL API JIKA CACHE KOSONG ATAU TOMBOL REFRESH DITEKAN
       const res = await fetch("/api/dashboard");
       const json = await res.json();
 
@@ -181,7 +177,6 @@ export default function DashboardUtama() {
     fetchDashboardData(false); // Mount pertama kali: Coba pakai cache dulu
   }, []);
 
-  // KOMPONEN MINI CHART DENGAN FIX 99% WIDTH
   const MiniChart = ({
     title,
     data,
@@ -284,7 +279,7 @@ export default function DashboardUtama() {
               Update: {lastUpdated} WIB
             </div>
           )}
-          {/* 🔥 TOMBOL REFRESH MEMAKSA SINKRONISASI KE DATABASE (forceRefresh = true) */}
+          {/* TOMBOL REFRESH MEMAKSA SINKRONISASI KE DATABASE (forceRefresh = true) */}
           <button
             onClick={() => fetchDashboardData(true)}
             disabled={loading}
@@ -295,9 +290,7 @@ export default function DashboardUtama() {
         </div>
       </div>
 
-      {/* ==========================================
-          🔥 BARIS 1: KUNJUNGAN HARI INI
-          ========================================== */}
+      {/* BARIS 1: KUNJUNGAN HARI INI */}
       <div>
         <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
           <ChartIcon className="w-4 h-4" />
@@ -347,9 +340,7 @@ export default function DashboardUtama() {
         </div>
       </div>
 
-      {/* ==========================================
-          🔥 BARIS 2: TOTAL ANGGOTA TERDAFTAR
-          ========================================== */}
+      {/* BARIS 2: TOTAL ANGGOTA TERDAFTAR */}
       <div>
         <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
           <UsersIcon className="w-4 h-4" />
@@ -401,9 +392,7 @@ export default function DashboardUtama() {
         </div>
       </div>
 
-      {/* ==========================================
-          🔥 BARIS 3: GRAFIK / VISUALISASI
-          ========================================== */}
+      {/* BARIS 3: GRAFIK / VISUALISASI */}
       <div className="bg-white border border-slate-200 p-4 md:p-5 rounded-2xl shadow-sm w-full mt-2">
         <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
           <ReportIcon className="w-5 h-5 text-blue-600" />

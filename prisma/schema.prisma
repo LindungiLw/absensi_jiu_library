@@ -26,7 +26,7 @@ model Anggota {
   // Ini membuat query menghitung total Mahasiswa/Dosen 
   @@index([role])
   @@index([nama])
-  @@map("anggota") // Nama tabel di MySQL nanti jadi "anggota"
+  @@map("anggota") 
 }
 
 model Kehadiran {
@@ -38,8 +38,6 @@ model Kehadiran {
 
   anggota     Anggota  @relation(fields: [id_anggota], references: [id_anggota], onDelete: Cascade)
 
-  // TAMBAHAN INDEX UNTUK MENCARI TANGGAL & ID DENGAN KILAT
-  // Ini membuat query pembuatan Grafik di Dashboard anti-lemot
   @@index([tanggal])
   @@index([id_anggota])
 
@@ -55,23 +53,23 @@ model HariLibur {
 
 model PengaturanSesi {
   id          Int    @id @default(autoincrement())
-  nama_sesi   String @unique // Pagi, Siang, Malam
-  jam_mulai   String // Format "HH:mm" misal "08:00"
-  jam_selesai String // Format "HH:mm" misal "11:59"
+  nama_sesi   String @unique 
+  jam_mulai   String 
+  jam_selesai String 
 }
 
 model PetugasKiosk {
   id           Int       @id @default(autoincrement())
   username     String    @unique
-  pin          String    // Menyimpan 6 digit PIN angka
-  lastOpenedAt DateTime? // Otomatis mencatat waktu terakhir stasiun dibuka
+  pin          String   
+  lastOpenedAt DateTime?
 }
 
-// RESERVED: Tabel untuk fitur OTP (Opsional - Bisa diaktifkan di masa depan)
+// RESERVED: Tabel untuk fitur OTP (Opsional - Bisa diaktifkan jika perlu)
 model OtpSession {
   id        Int      @id @default(autoincrement())
-  email     String   @unique // Satu akun admin hanya memiliki 1 kode aktif
-  code      String   // Menyimpan 6 digit kode OTP
-  expiresAt DateTime // Batas waktu validitas OTP
+  email     String   @unique 
+  code      String   
+  expiresAt DateTime 
   createdAt DateTime @default(now())
 }

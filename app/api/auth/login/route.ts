@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
 import { prisma } from "../../../lib/prisma";
 
-// 🛡️ MEMORI RATE LIMITER (Proteksi dari Spam Kiosk di Area Publik)
 // Mencatat jumlah percobaan salah berdasarkan kombinasi IP / Username
 const rateLimitMap = new Map<string, { count: number; lockUntil: number }>();
 
@@ -24,7 +23,7 @@ export async function POST(request: Request) {
         {
           error: `Terlalu banyak percobaan. Akses dikunci, coba lagi dalam ${remainingTime} detik.`,
         },
-        { status: 429 }, // 429 Too Many Requests
+        { status: 429 },
       );
     }
 
@@ -47,12 +46,12 @@ export async function POST(request: Request) {
       userRole = "superadmin";
       divisi = "Perpustakaan JIU";
     } else {
-      // JALUR 2: Cek ke Database Petugas Kiosk (Real-time)
+      // JALUR 2: Cek ke Database Petugas  (Real-time)
       const petugas = await prisma.petugasKiosk.findUnique({
         where: { username: email },
       });
 
-      // PENCATATAN AMAN: Jika Anda sudah beralih ke hash PIN, gunakan perbandingan hash di sini
+      // PENCATATAN AMAN: Jika sudah beralih ke hash PIN, gunakan perbandingan hash di sini
       if (petugas && petugas.pin === password) {
         userRole = "petugas_kiosk";
         userEmail = petugas.username;
@@ -70,7 +69,7 @@ export async function POST(request: Request) {
       const failedAttempts = (currentLimit?.count || 0) + 1;
 
       if (failedAttempts >= 5) {
-        // Jika salah sebanyak 5 kali berturut-turut, KUNCI selama 5 menit (300.000 ms)
+        // Jika salah sebanyak 5 kali berturut-turut
         rateLimitMap.set(limitKey, {
           count: 0,
           lockUntil: Date.now() + 300000,
@@ -90,7 +89,7 @@ export async function POST(request: Request) {
 
     // 4. BUAT TOKEN JWT (Masa aktif dibedakan demi keamanan stasiun publik)
     const isKiosk = userRole === "petugas_kiosk";
-    const tokenLifespan = isKiosk ? "4h" : "24h"; // Token Kiosk mati otomatis dalam 4 jam jika petugas lupa logout
+    const tokenLifespan = isKiosk ? "4h" : "24h"; // Token akan mati otomatis dalam 4 jam jika petugas lupa logout
 
     const token = await new SignJWT({
       role: userRole,

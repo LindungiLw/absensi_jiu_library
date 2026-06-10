@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
-import { cookies } from "next/headers"; // 🛡️ IMPORT KEAMANAN
+import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
-// 1. AMBIL SEMUA DATA PETUGAS KIOSK (SEKARANG SUDAH DIKUNCI 🔒)
+// 1. AMBIL SEMUA DATA PETUGAS KIOSK
 export async function GET() {
-  // 🛡️ BLOK PELINDUNG KEAMANAN
+  // BLOK PELINDUNG KEAMANAN
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) {
     return NextResponse.json(

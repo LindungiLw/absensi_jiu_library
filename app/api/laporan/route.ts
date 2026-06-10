@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
-import { cookies } from "next/headers"; // 🛡️ IMPORT KEAMANAN NEXT.JS 15
+import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  // 🛡️ BLOK PELINDUNG KEAMANAN: Mengunci data log presensi dari publik 🔒
+  // Mengunci data log presensi dari publik
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) {
     return NextResponse.json(

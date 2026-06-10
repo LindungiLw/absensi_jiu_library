@@ -1,8 +1,6 @@
-/* ==============================================================
-   BOOK BACKGROUND — FROSTED ICE BLUE THEME
-   ============================================================== */
+/* BOOK BACKGROUND */
 
-/* ── Scene wrapper ─────────────────────────────────────────── */
+/* Scene wrapper */
 .bb-scene {
   position: fixed;
   inset: 0;
@@ -17,12 +15,13 @@
   user-select: none;
 }
 
-/* ── Book wrapper — 3-D float ──────────────────────────────── */
+/* Book wrapper 3-D float */
 .bb-book-wrap {
   position: relative;
   transform-style: preserve-3d;
   animation: bbBookFloat 8s ease-in-out infinite;
 }
+
 @keyframes bbBookFloat {
   0%,
   100% {
@@ -33,7 +32,7 @@
   }
 }
 
-/* ── Book canvas ───────────────────────────────────────────── */
+/* Book canvas */
 .bb-book {
   position: relative;
   width: 560px;
@@ -41,7 +40,7 @@
   transform-style: preserve-3d;
 }
 
-/* ── Spine (Tulang Buku Biru Kaca) ─────────────────────────── */
+/*  Spine (Tulang Buku Biru Kaca)  */
 .bb-spine {
   position: absolute;
   left: 50%;
@@ -63,7 +62,7 @@
   box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
 }
 
-/* ── Pages ─────────────────────────────────────────────────── */
+/* Pages */
 .bb-page {
   position: absolute;
   top: 0;
@@ -86,6 +85,8 @@
   border-radius: 0 12px 12px 0;
   animation: bbRightBreath 8s ease-in-out infinite;
 }
+
+/* Page animation */
 @keyframes bbLeftBreath {
   0%,
   100% {
@@ -105,11 +106,10 @@
   }
 }
 
-/* ── Page surface (Kertas Kaca Biru Es / Lebih Jelas) ──────── */
+/* Page surface (Kertas Kaca Biru Es / Lebih Jelas) */
 .bb-page-surface {
   position: absolute;
   inset: 0;
-  /* Opacity dinaikkan (0.85) dan diberi rona biru langit sangat muda */
   background: linear-gradient(
     135deg,
     rgba(240, 249, 255, 0.9) 0%,
@@ -129,7 +129,7 @@
   );
 }
 
-/* ── Ghost page-turn (Halaman bayangan biru) ───────────────── */
+/* Ghost page-turn (Halaman bayangan biru) */
 .bb-ghost {
   position: absolute;
   top: 0;
@@ -138,7 +138,6 @@
   width: 274px;
   height: 370px;
   transform-origin: right center;
-  /* Lebih tebal dari sebelumnya */
   background: linear-gradient(225deg, rgba(224, 242, 254, 0.7), transparent);
   border: 1px solid rgba(186, 230, 253, 0.6);
   border-radius: 12px 0 0 12px;
@@ -147,6 +146,7 @@
   z-index: 5;
   backface-visibility: hidden;
 }
+
 @keyframes bbGhostTurn {
   0%,
   20% {
@@ -164,7 +164,7 @@
   }
 }
 
-/* ── Ruled lines (Garis data biru pudar) ───────────────────── */
+/* Ruled lines (Garis data biru pudar) */
 .bb-page-lines {
   position: absolute;
   inset: 0;
@@ -179,7 +179,7 @@
   background-position: 0 36px;
 }
 
-/* ── Teks di dalam buku (Ditebalkan sedikit & Warna Biru JIU) ── */
+/* Teks di dalam buku (Ditebalkan sedikit & Warna Biru JIU) */
 .bb-page-header {
   font-family: monospace;
   font-size: 10px;
@@ -193,7 +193,7 @@
 }
 .bb-page-text {
   font-family: monospace;
-  color: rgba(30, 64, 175, 0.5); /* Biru gelap (opacity 50%) */
+  color: rgba(30, 64, 175, 0.5);
   font-weight: 600;
   font-size: 9.5px;
   line-height: 22px;
@@ -205,13 +205,13 @@
 .bb-text-left {
   text-align: left;
 }
-
 .bb-wl {
   display: block;
   overflow: hidden;
   white-space: nowrap;
   animation: bbTypeReveal 10s linear infinite;
 }
+
 @keyframes bbTypeReveal {
   0% {
     max-width: 0;
@@ -232,11 +232,7 @@
   }
 }
 
-/* ==============================================================
-   FLOATING KNOWLEDGE (ICONS & TYPEWRITER WORDS)
-   ============================================================== */
-
-/* ── Ikon Melayang ── */
+/* Ikon Melayang */
 .bg-knowledge-icon {
   position: absolute;
   color: rgba(56, 189, 248, 0.25);
@@ -262,7 +258,7 @@
   }
 }
 
-/* ── Teks Mata Kuliah (Menggunakan Warna Dinamis: var(--word-color)) ── */
+/* Teks Mata Kuliah  */
 .bg-knowledge-word {
   position: absolute;
   color: var(
@@ -287,12 +283,12 @@
   }
 }
 
-/* ── Efek Mengetik dengan Kursor Warna-Warni ── */
+/*  Efek Mengetik dengan Kursor Warna-Warni  */
 .typewriter-inner {
   display: inline-block;
   overflow: hidden;
   white-space: nowrap;
-  border-right: 2px solid; /* Warnanya diatur oleh keyframes di bawah */
+  border-right: 2px solid;
   width: 0;
   animation: typeBgWord 12s steps(30, end) infinite;
 }
