@@ -5,10 +5,9 @@ import { cookies } from "next/headers"; // 🛡️ IMPORT KEAMANAN
 export const dynamic = "force-dynamic";
 
 // ==============================================================
-// 1. MENGAMBIL DATA ANGGOTA (SEKARANG AMAN 🔒)
+// 1. MENGAMBIL DATA ANGGOTA (SEKARANG AMAN & SORTING GLOBAL 🔒)
 // ==============================================================
 export async function GET(request: Request) {
-  // 🛡️ BLOK PELINDUNG KEAMANAN
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) {
     return NextResponse.json(
@@ -38,6 +37,14 @@ export async function GET(request: Request) {
       whereClause.role = role;
     }
 
+    // 🔥 SORTING GLOBAL DARI DATABASE:
+    // Jika Student: Urutkan berdasarkan Batch (Ascending) DULU, baru Nama A-Z.
+    // Jika Dosen/Staff: Langsung Nama A-Z.
+    const orderByClause =
+      role === "student"
+        ? [{ batch: "asc" }, { nama: "asc" }]
+        : [{ nama: "asc" }];
+
     const [
       daftarAnggota,
       totalRecords,
@@ -47,7 +54,7 @@ export async function GET(request: Request) {
     ] = await Promise.all([
       prisma.anggota.findMany({
         where: whereClause,
-        orderBy: { nama: "asc" },
+        orderBy: orderByClause as any,
         skip: skip,
         take: limit,
         include: { _count: { select: { kehadiran: true } } },
@@ -89,7 +96,7 @@ export async function GET(request: Request) {
 }
 
 // ==============================================================
-// 2. MENAMBAH ANGGOTA
+// 2. MENAMBAH / IMPORT ANGGOTA
 // ==============================================================
 export async function POST(request: Request) {
   const token = (await cookies()).get("admin_token")?.value;
@@ -109,6 +116,7 @@ export async function POST(request: Request) {
             role: item.role,
             jurusan: item.jurusan ? String(item.jurusan).trim() : null,
             batch: item.batch ? String(item.batch).trim() : null,
+            // total_kunjungan TIDAK DIUBAH DI SINI, JADI AMAN!
           },
           create: {
             id_anggota: cleanId,
@@ -167,7 +175,7 @@ export async function POST(request: Request) {
 }
 
 // ==========================================
-// 3. MENGHAPUS ANGGOTA
+// 3. MENGHAPUS ANGGOTA (BISA MASSAL)
 // ==========================================
 export async function DELETE(request: Request) {
   const token = (await cookies()).get("admin_token")?.value;
@@ -175,19 +183,32 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    // Cek apakah ada JSON body (Hapus Massal)
+    const body = await request.json().catch(() => null);
+
+    if (body && Array.isArray(body.ids) && body.ids.length > 0) {
+      await prisma.anggota.deleteMany({
+        where: { id_anggota: { in: body.ids } },
+      });
+      return NextResponse.json({
+        success: true,
+        message: `${body.ids.length} data anggota berhasil dihapus!`,
+      });
+    }
+
+    // Jika bukan massal, tangkap dari query parameter (Hapus Satuan)
     const { searchParams } = new URL(request.url);
     const id_anggota = searchParams.get("id");
-    if (!id_anggota)
-      return NextResponse.json(
-        { error: "ID tidak ditemukan." },
-        { status: 400 },
-      );
 
-    await prisma.anggota.delete({ where: { id_anggota: id_anggota } });
-    return NextResponse.json({
-      success: true,
-      message: "Data anggota berhasil dihapus!",
-    });
+    if (id_anggota) {
+      await prisma.anggota.delete({ where: { id_anggota: id_anggota } });
+      return NextResponse.json({
+        success: true,
+        message: "Data anggota berhasil dihapus!",
+      });
+    }
+
+    return NextResponse.json({ error: "ID tidak ditemukan." }, { status: 400 });
   } catch (error) {
     return NextResponse.json(
       { error: "Gagal menghapus data." },

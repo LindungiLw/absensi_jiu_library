@@ -53,18 +53,20 @@ const PULAU_OPTIONS = [
   "Maluku",
 ];
 
-// 🔥 GLOBAL CACHE (Di Luar Komponen):
-// Agar memori tidak hilang meskipun admin bolak-balik pindah menu (Dashboard/Laporan/dll)
 let globalAnggotaCache: Record<string, any> = {};
 
 export default function ManajemenAnggota() {
   const [anggotaList, setAnggotaList] = useState<Anggota[]>([]);
+
+  // 🔥 STATE UNTUK CHECKBOX HAPUS MASSAL
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // SEPARATED UX LOADING STATES
   const [loadingList, setLoadingList] = useState(false);
   const [submittingManual, setSubmittingManual] = useState(false);
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [submittingEdit, setSubmittingEdit] = useState(false);
+  const [deletingBulk, setDeletingBulk] = useState(false);
 
   const [notif, setNotif] = useState<{
     type: "success" | "error";
@@ -79,7 +81,6 @@ export default function ManajemenAnggota() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const LIMIT = 50;
 
-  // State untuk menyimpan data statistik total
   const [stats, setStats] = useState({ student: 0, lecturer: 0, staff: 0 });
 
   const [showBatchAdd, setShowBatchAdd] = useState(false);
@@ -89,13 +90,11 @@ export default function ManajemenAnggota() {
     String(currentYear - i),
   );
 
-  // State Pengendali Open/Close Custom Dropdown Form Tambah
   const [openRoleAdd, setOpenRoleAdd] = useState(false);
   const [openJurusanAdd, setOpenJurusanAdd] = useState(false);
   const [openNegaraAdd, setOpenNegaraAdd] = useState(false);
   const [openPulauAdd, setOpenPulauAdd] = useState(false);
 
-  // State Pengendali Open/Close Custom Dropdown Modal Edit
   const [openRoleEdit, setOpenRoleEdit] = useState(false);
   const [openNegaraEdit, setOpenNegaraEdit] = useState(false);
   const [openPulauEdit, setOpenPulauEdit] = useState(false);
@@ -123,10 +122,12 @@ export default function ManajemenAnggota() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Reset seleksi checkbox setiap kali pindah halaman/tab/search
+    setSelectedIds([]);
+
     const roleQuery = activeTab.toLowerCase();
     const cacheKey = `${roleQuery}-${currentPage}-${searchQuery}`;
 
-    // 🚀 LOGIKA MEMORI INSTAN: Gunakan data di Global Cache jika ada (Tidak reload ke database)
     if (globalAnggotaCache[cacheKey]) {
       setAnggotaList(globalAnggotaCache[cacheKey].data);
       setTotalPages(globalAnggotaCache[cacheKey].totalPages);
@@ -135,7 +136,6 @@ export default function ManajemenAnggota() {
       return;
     }
 
-    // Jika data benar-benar belum pernah ditarik, baru panggil API
     setLoadingList(true);
     const timer = setTimeout(async () => {
       try {
@@ -150,7 +150,6 @@ export default function ManajemenAnggota() {
             setStats(json.meta.stats);
           }
 
-          // 💾 SIMPAN KE GLOBAL CACHE
           globalAnggotaCache[cacheKey] = {
             data: json.data,
             totalPages: json.meta.totalPages || 1,
@@ -197,33 +196,9 @@ export default function ManajemenAnggota() {
       const data = await res.json();
       if (res.ok) {
         setNotif({ type: "success", msg: data.message });
+        globalAnggotaCache = {};
+        setRefreshTrigger((prev) => prev + 1);
 
-        // 🔥 SUNTIK DATA BARU KE MEMORI LOKAL TANPA RELOAD API
-        const newAnggota = { ...data.data, total_absensi: 0 }; // Anggota baru absensinya 0
-        const roleBaru = newAnggota.role;
-
-        // 1. Update list yang sedang dilihat (jika tab-nya sama)
-        if (activeTab.toLowerCase() === roleBaru) {
-          setAnggotaList((prev) => [newAnggota, ...prev]);
-        }
-        // 2. Update Angka Total Statistik
-        setStats((prev) => ({
-          ...prev,
-          [roleBaru]: prev[roleBaru as keyof typeof prev] + 1,
-        }));
-
-        // 3. Suntik ke dalam Global Cache secara diam-diam
-        Object.keys(globalAnggotaCache).forEach((key) => {
-          if (key.includes(roleBaru)) {
-            globalAnggotaCache[key].data = [
-              newAnggota,
-              ...globalAnggotaCache[key].data,
-            ];
-            globalAnggotaCache[key].stats[roleBaru] += 1;
-          }
-        });
-
-        // Reset form
         setFormManual({
           id_anggota: "",
           nama: "",
@@ -263,7 +238,6 @@ export default function ManajemenAnggota() {
         setNotif({ type: "success", msg: data.message });
         setEditModalOpen(false);
 
-        // 🔥 UPDATE HANYA 1 DATA SPESIFIK DI MEMORI LOKAL TANPA RELOAD API
         setAnggotaList((prev) =>
           prev.map((a) =>
             a.id_anggota === payload.id_anggota ? { ...a, ...payload } : a,
@@ -370,7 +344,6 @@ export default function ManajemenAnggota() {
 
         if (res.ok) {
           setNotif({ type: "success", msg: data.message });
-          // Khusus Upload Excel, kita hapus cache total karena datanya berubah masif
           globalAnggotaCache = {};
           setRefreshTrigger((prev) => prev + 1);
         } else {
@@ -386,6 +359,7 @@ export default function ManajemenAnggota() {
     reader.readAsBinaryString(file);
   };
 
+  // FUNGSI HAPUS SATUAN
   const handleDelete = async (id: string, nama: string) => {
     const confirmDelete = window.confirm(
       `Hapus data anggota "${nama}" beserta riwayat kunjungannya?`,
@@ -398,25 +372,8 @@ export default function ManajemenAnggota() {
       const data = await res.json();
       if (res.ok) {
         setNotif({ type: "success", msg: data.message });
-
-        // 🔥 HAPUS 1 DATA DARI MEMORI LOKAL TANPA RELOAD API
-        const roleYangDihapus =
-          anggotaList.find((a) => a.id_anggota === id)?.role || "student";
-
-        setAnggotaList((prev) => prev.filter((a) => a.id_anggota !== id));
-        setStats((prev) => ({
-          ...prev,
-          [roleYangDihapus]: prev[roleYangDihapus as keyof typeof prev] - 1,
-        }));
-
-        Object.keys(globalAnggotaCache).forEach((key) => {
-          globalAnggotaCache[key].data = globalAnggotaCache[key].data.filter(
-            (a: Anggota) => a.id_anggota !== id,
-          );
-          if (key.includes(roleYangDihapus)) {
-            globalAnggotaCache[key].stats[roleYangDihapus] -= 1;
-          }
-        });
+        globalAnggotaCache = {};
+        setRefreshTrigger((prev) => prev + 1);
       } else {
         setNotif({ type: "error", msg: data.error });
       }
@@ -427,19 +384,51 @@ export default function ManajemenAnggota() {
     }
   };
 
-  // 🔥 LOGIKA PENGURUTAN (SORTING) DATA
-  const sortedAnggotaList = [...anggotaList].sort((a, b) => {
-    // Jika tab Mahasiswa, urutkan berdasarkan Batch terlama ke terbaru (Ascending)
-    if (activeTab === "Student") {
-      const batchA = a.batch ? parseInt(a.batch) : 9999;
-      const batchB = b.batch ? parseInt(b.batch) : 9999;
-      if (batchA !== batchB) {
-        return batchA - batchB; // Ascending (cth: 2022, 2023, 2024...)
+  // 🔥 FUNGSI HAPUS MASSAL CHECKBOX
+  const handleBulkDelete = async () => {
+    const confirmDelete = window.confirm(
+      `Yakin ingin menghapus ${selectedIds.length} data anggota terpilih? Riwayat absen mereka juga akan ikut terhapus.`,
+    );
+    if (!confirmDelete) return;
+    setDeletingBulk(true);
+    setNotif(null);
+    try {
+      const res = await fetch(`/api/anggota`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNotif({ type: "success", msg: data.message });
+        setSelectedIds([]);
+        globalAnggotaCache = {};
+        setRefreshTrigger((prev) => prev + 1);
+      } else {
+        setNotif({ type: "error", msg: data.error });
       }
+    } catch (err) {
+      setNotif({ type: "error", msg: "Gagal menghapus data massal." });
+    } finally {
+      setDeletingBulk(false);
     }
-    // Jika Batch sama (atau untuk Dosen & Staff), urutkan Nama Sesuai Abjad A-Z
-    return a.nama.localeCompare(b.nama);
-  });
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(anggotaList.map((a) => a.id_anggota));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds((prev) => prev.filter((i) => i !== id));
+    } else {
+      setSelectedIds((prev) => [...prev, id]);
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-4 w-full text-slate-800 relative">
@@ -782,17 +771,31 @@ export default function ManajemenAnggota() {
               ))}
             </div>
 
-            <div className="w-full sm:w-64 relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                🔍
-              </span>
-              <input
-                type="text"
-                placeholder="Cari ID, Nama..."
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
-              />
+            <div className="flex w-full sm:w-auto gap-2">
+              {/* TOMBOL HAPUS MASSAL MUNCUL JIKA ADA YANG DICENTANG */}
+              {selectedIds.length > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={deletingBulk}
+                  className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 whitespace-nowrap"
+                >
+                  <TrashIcon className="w-3.5 h-3.5" />
+                  Hapus {selectedIds.length} Terpilih
+                </button>
+              )}
+
+              <div className="w-full sm:w-64 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  🔍
+                </span>
+                <input
+                  type="text"
+                  placeholder="Cari ID, Nama, Jurusan (EL)..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700"
+                />
+              </div>
             </div>
           </div>
 
@@ -800,7 +803,19 @@ export default function ManajemenAnggota() {
             <table className="w-full text-left text-sm whitespace-nowrap relative">
               <thead className="bg-white sticky top-0 z-20 shadow-sm">
                 <tr className="text-slate-400 font-mono text-xs uppercase tracking-wider border-b border-slate-200">
-                  <th className="px-6 py-4 font-semibold">No</th>
+                  {/* HEADER CHECKBOX MASSAL */}
+                  <th className="px-4 py-4 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      onChange={handleSelectAll}
+                      checked={
+                        anggotaList.length > 0 &&
+                        selectedIds.length === anggotaList.length
+                      }
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </th>
+                  <th className="px-2 py-4 font-semibold">No</th>
                   <th className="px-6 py-4 font-semibold">ID Anggota</th>
                   <th className="px-6 py-4 font-semibold">Nama Lengkap</th>
                   {activeTab === "Student" && (
@@ -811,20 +826,14 @@ export default function ManajemenAnggota() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loadingList && sortedAnggotaList.length === 0 ? (
+              {/* EFEK VISUAL LOADING (OPACITY) SAAT PROSES PAGINATION */}
+              <tbody
+                className={`divide-y divide-slate-100 transition-opacity duration-300 ${loadingList ? "opacity-30 pointer-events-none" : "opacity-100"}`}
+              >
+                {anggotaList.length === 0 && !loadingList ? (
                   <tr>
                     <td
-                      colSpan={activeTab === "Student" ? 5 : 4}
-                      className="px-6 py-8 text-center text-slate-500 text-xs animate-pulse font-medium"
-                    >
-                      Memuat data database...
-                    </td>
-                  </tr>
-                ) : sortedAnggotaList.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={activeTab === "Student" ? 5 : 4}
+                      colSpan={activeTab === "Student" ? 6 : 5}
                       className="px-6 py-8 text-center text-slate-400 text-xs italic"
                     >
                       {searchQuery
@@ -833,12 +842,21 @@ export default function ManajemenAnggota() {
                     </td>
                   </tr>
                 ) : (
-                  sortedAnggotaList.map((anggota, index) => (
+                  anggotaList.map((anggota, index) => (
                     <tr
                       key={anggota.id_anggota}
                       className="hover:bg-slate-50 transition-colors group"
                     >
-                      <td className="px-6 py-3 text-slate-500 font-mono text-xs">
+                      {/* CHECKBOX INDIVIDUAL */}
+                      <td className="px-4 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(anggota.id_anggota)}
+                          onChange={() => handleSelectOne(anggota.id_anggota)}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-2 py-3 text-slate-500 font-mono text-xs">
                         {(currentPage - 1) * LIMIT + index + 1}
                       </td>
                       <td className="px-6 py-3 font-mono text-blue-600 font-medium text-xs">
@@ -897,11 +915,18 @@ export default function ManajemenAnggota() {
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-slate-200 bg-slate-50 gap-4 sm:gap-0">
-            <div className="flex-1 flex justify-start">
+            <div className="flex-1 flex justify-start items-center gap-3">
               <span className="text-xs text-slate-500 font-medium bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
                 Halaman <strong className="text-blue-700">{currentPage}</strong>{" "}
                 dari {totalPages}
               </span>
+              {/* TAMPILAN INDIKATOR LOADING PADA TOMBOL */}
+              {loadingList && (
+                <span className="text-[10px] font-bold text-blue-500 animate-pulse flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span>
+                  Memuat Data...
+                </span>
+              )}
             </div>
 
             <div className="flex-1 flex justify-center">
@@ -921,7 +946,7 @@ export default function ManajemenAnggota() {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1 || loadingList}
-                className="px-4 py-1.5 text-xs font-bold bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 transition-all shadow-sm"
+                className="px-4 py-1.5 text-xs font-bold bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
               >
                 &larr; Prev
               </button>
@@ -932,7 +957,7 @@ export default function ManajemenAnggota() {
                 disabled={
                   currentPage === totalPages || totalPages === 0 || loadingList
                 }
-                className="px-4 py-1.5 text-xs font-bold bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 transition-all shadow-sm"
+                className="px-4 py-1.5 text-xs font-bold bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
               >
                 Next &rarr;
               </button>
