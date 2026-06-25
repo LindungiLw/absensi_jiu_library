@@ -19,7 +19,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?? '' ?>">
     <title>Admin Login - JIU Library</title>
     <link rel="icon" type="image/png" href="assets/images/jiu_logo.png">
-    <script src="assets/js/tailwindcss.js"></script>
+    <link rel="stylesheet" href="assets/css/style.min.css">
     <link rel="stylesheet" href="assets/css/poppins.css">
     <style>
         body { font-family: 'Poppins', sans-serif; }

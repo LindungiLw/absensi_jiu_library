@@ -37,7 +37,7 @@ if (empty($_SESSION['csrf_token'])) {
     <title>Scanner Presensi - JIU Library</title>
     <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?? '' ?>">
     <link rel="icon" type="image/png" href="assets/images/jiu_logo.png">
-    <script src="assets/js/tailwindcss.js"></script>
+    <link rel="stylesheet" href="assets/css/style.min.css">
     <link rel="stylesheet" href="assets/css/poppins.css">
     <link rel="stylesheet" href="assets/animations.css">
     <style>
