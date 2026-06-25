@@ -1,8 +1,24 @@
 <?php
-header('Content-Type: application/json');
-
-require_once '../admin/middleware.php'; // Proteksi Admin
+session_start();
+if (empty($_SESSION['admin_logged_in'])) {
+    http_response_code(401);
+    echo json_encode(["success" => false, "error" => "Unauthorized access."]);
+    exit;
+}
 require_once '../config/koneksi.php';
+
+header('Content-Type: application/json');
+$method = $_SERVER['REQUEST_METHOD'];
+
+if (in_array($method, ['POST', 'PUT', 'DELETE'])) {
+    $headers = getallheaders();
+    $csrfToken = $headers['X-CSRF-Token'] ?? $headers['x-csrf-token'] ?? '';
+    if (empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'CSRF token mismatch.']);
+        exit;
+    }
+}
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 

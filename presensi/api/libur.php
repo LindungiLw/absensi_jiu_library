@@ -9,6 +9,16 @@ require_once '../config/koneksi.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+if (in_array($method, ['POST', 'DELETE'])) {
+    $headers = getallheaders();
+    $csrfToken = $headers['X-CSRF-Token'] ?? $headers['x-csrf-token'] ?? '';
+    if (empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'CSRF token mismatch.']);
+        exit;
+    }
+}
+
 if ($method === 'GET') {
     $stmt = $pdo->query("SELECT id, tanggal, keterangan FROM harilibur ORDER BY tanggal ASC");
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);

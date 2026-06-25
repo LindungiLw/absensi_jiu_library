@@ -1,4 +1,10 @@
 <?php
+// Pastikan URL direktori berakhiran '/' agar relative path bekerja konsisten
+$requestUriPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+if ($requestUriPath !== '' && substr($requestUriPath, -1) !== '/' && !preg_match('#\.(php|html|css|js|png|jpg)$#i', $requestUriPath)) {
+    header("Location: " . $requestUriPath . "/" . (isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== '' ? '?' . $_SERVER['QUERY_STRING'] : ''));
+    exit;
+}
 session_start();
 require_once 'config/koneksi.php';
 

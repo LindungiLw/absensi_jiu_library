@@ -65,7 +65,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
             </form>
             
             <div class="mt-8 text-center">
-                <a href="index.html" class="text-sm font-semibold text-slate-400 hover:text-blue-600 transition-colors">
+                <a href="index.php" class="text-sm font-semibold text-slate-400 hover:text-blue-600 transition-colors">
                     ← Kembali ke Kiosk Scanner
                 </a>
             </div>
