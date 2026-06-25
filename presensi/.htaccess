@@ -1,0 +1,8 @@
+RewriteEngine On
+
+# Jangan menambahkan .php jika URL adalah sebuah direktori (folder) yang valid
+RewriteCond %{REQUEST_FILENAME} !-d
+# Jangan menambahkan .php jika URL adalah sebuah file yang valid (seperti gambar/css)
+RewriteCond %{REQUEST_FILENAME} !-f
+# Redirect secara diam-diam (internal routing) agar menghilangkan .php
+RewriteRule ^([^\.]+)$ $1.php [NC,L]
