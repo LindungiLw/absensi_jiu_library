@@ -15,3 +15,8 @@ presensi/admin/
 # Environment variables
 .env
 .env.*
+
+presensi/.htaccess
+
+# Authentication API (diabaikan sesuai permintaan user)
+presensi/api/auth.php

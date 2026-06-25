@@ -11,10 +11,10 @@ $libur = $stmt->fetch();
 $isLibur = $libur ? true : false;
 $ketLibur = $libur['keterangan'] ?? 'National Holiday / Official Campus Closure.';
 
-// 2. Cek Lock Status (Auto-lock on reload)
+// 2. Cek Lock Status (Persisten hingga dikunci manual)
 $isLocked = true;
-if (isset($_SESSION['kiosk_unlocked'])) {
-    unset($_SESSION['kiosk_unlocked']);
+if (isset($_SESSION['kiosk_unlocked']) && $_SESSION['kiosk_unlocked'] === true) {
+    $isLocked = false;
 }
 
 // Generate CSRF Token

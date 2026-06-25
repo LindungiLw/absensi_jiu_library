@@ -1,8 +1,21 @@
 RewriteEngine On
 
-# Jangan menambahkan .php jika URL adalah sebuah direktori (folder) yang valid
+# 1. Disable Directory Browsing (Sangat penting agar orang tidak bisa melihat isi folder assets/api/admin)
+Options -Indexes
+
+# 2. Blokir akses langsung ke file sensitif (seperti .env, .sql, atau koneksi.php)
+<FilesMatch "\.(env|sql|ini|log|sh)$|^koneksi\.php$">
+    Require all denied
+</FilesMatch>
+
+# 3. Menghilangkan akhiran .php agar URL terlihat lebih bersih dan profesional
+# Contoh: /login.php menjadi /login
 RewriteCond %{REQUEST_FILENAME} !-d
-# Jangan menambahkan .php jika URL adalah sebuah file yang valid (seperti gambar/css)
 RewriteCond %{REQUEST_FILENAME} !-f
-# Redirect secara diam-diam (internal routing) agar menghilangkan .php
 RewriteRule ^([^\.]+)$ $1.php [NC,L]
+
+# 4. Paksa menggunakan HTTPS (Kecuali saat dites di Localhost XAMPP)
+RewriteCond %{HTTP_HOST} !=localhost
+RewriteCond %{HTTP_HOST} !=127.0.0.1
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
