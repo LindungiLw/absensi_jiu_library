@@ -49,19 +49,19 @@ if ($method === 'GET') {
     
     $whereStr = count($where) > 0 ? "WHERE " . implode(" AND ", $where) : "";
     
-    // Hitung total data
+    // Count total data
     $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM anggota $whereStr");
     $stmtCount->execute($params);
     $total = $stmtCount->fetchColumn();
     
-    // Ambil data
+    // Fetch data
     $query = "SELECT id_anggota, nama, role, jurusan, batch, negara, pulau, total_kunjungan as total_absensi 
               FROM anggota $whereStr ORDER BY batch ASC, id_anggota ASC LIMIT $limit OFFSET $offset";
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Hitung stats
+    // Calculate stats
     $stmtRoleCount = $pdo->query("SELECT role, COUNT(*) as count FROM anggota GROUP BY role");
     $roleCounts = $stmtRoleCount->fetchAll(PDO::FETCH_KEY_PAIR);
     
@@ -99,7 +99,7 @@ if ($method === 'POST') {
                     'batch' => $row['batch'] ?? null
                 ]);
             }
-            $msg = count($body) . " data berhasil diimpor!";
+            $msg = count($body) . " data successfully imported!";
         } else {
             // Single Item (Manual Add)
             $stmt = $pdo->prepare("INSERT INTO anggota (id_anggota, nama, role, jurusan, batch, negara, pulau) VALUES (:id, :nama, :role, :jurusan, :batch, :negara, :pulau)");
@@ -112,13 +112,13 @@ if ($method === 'POST') {
                 'negara' => $body['negara'] ?: 'ID',
                 'pulau' => $body['pulau'] ?: null
             ]);
-            $msg = "Data {$body['nama']} berhasil ditambahkan!";
+            $msg = "Data {$body['nama']} successfully added!";
         }
         $pdo->commit();
         echo json_encode(["success" => true, "message" => $msg]);
     } catch (Exception $e) {
         $pdo->rollBack();
-        echo json_encode(["success" => false, "error" => "ID Anggota mungkin sudah ada. " . $e->getMessage()]);
+        echo json_encode(["success" => false, "error" => "Member ID might already exist. " . $e->getMessage()]);
     }
     exit;
 }
@@ -135,7 +135,7 @@ if ($method === 'PUT') {
             'negara' => $body['negara'] ?: 'ID',
             'pulau' => $body['pulau'] ?: null
         ]);
-        echo json_encode(["success" => true, "message" => "Data berhasil diperbarui!"]);
+        echo json_encode(["success" => true, "message" => "Data successfully updated!"]);
     } catch (Exception $e) {
         echo json_encode(["success" => false, "error" => $e->getMessage()]);
     }
@@ -149,15 +149,15 @@ if ($method === 'DELETE') {
             // Delete Single
             $stmt = $pdo->prepare("DELETE FROM anggota WHERE id_anggota = :id");
             $stmt->execute(['id' => $_GET['id']]);
-            $msg = "Data berhasil dihapus!";
+            $msg = "Data successfully deleted!";
         } else if (isset($body['ids']) && is_array($body['ids'])) {
             // Bulk Delete
             $placeholders = str_repeat('?,', count($body['ids']) - 1) . '?';
             $stmt = $pdo->prepare("DELETE FROM anggota WHERE id_anggota IN ($placeholders)");
             $stmt->execute($body['ids']);
-            $msg = count($body['ids']) . " data berhasil dihapus!";
+            $msg = count($body['ids']) . " data successfully deleted!";
         } else {
-             throw new Exception("ID tidak ditemukan");
+             throw new Exception("ID not found");
         }
         $pdo->commit();
         echo json_encode(["success" => true, "message" => $msg]);

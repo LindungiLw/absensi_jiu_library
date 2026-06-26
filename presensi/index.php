@@ -129,7 +129,7 @@ if (empty($_SESSION['csrf_token'])) {
                 <!-- Guest Button -->
                 <div class="mt-5 text-center relative z-30">
                     <button onclick="openGuestModal()" class="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors underline decoration-2 underline-offset-4 decoration-blue-200 hover:decoration-blue-500">
-                        Not a Member? Guest Check-in here
+                        Guest Check-in here
                     </button>
                 </div>
 

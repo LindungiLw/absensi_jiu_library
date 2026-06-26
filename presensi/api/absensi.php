@@ -1,11 +1,11 @@
 <?php
 header('Content-Type: application/json');
 
-// 1. BLOK PELINDUNG KEAMANAN (Kiosk Lock Session)
+// 1. SECURITY PROTECTION BLOCK (Kiosk Lock Session)
 session_start();
 if (empty($_SESSION['kiosk_unlocked'])) {
     http_response_code(401);
-    echo json_encode(["error" => "Akses Ditolak! Scanner belum diaktifkan oleh petugas."]);
+    echo json_encode(["error" => "Access Denied! Scanner has not been activated by the librarian."]);
     exit;
 }
 
@@ -25,7 +25,7 @@ if (empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csr
     exit;
 }
 
-// Membaca raw POST data (JSON)
+// Read raw POST data (JSON)
 $inputJSON = file_get_contents('php://input');
 $body = json_decode($inputJSON, TRUE);
 
@@ -39,7 +39,7 @@ if (!$rawId) {
 
 $cleanId = trim((string)$rawId);
 
-// Mengatur zona waktu
+// Set timezone
 date_default_timezone_set('Asia/Jakarta');
 $hari = date('w'); // 0 (Sunday) - 6 (Saturday)
 $currentHHMM = date('H:i');
@@ -48,8 +48,8 @@ $currentMonth = (int)date('n');
 $currentYearNum = date('Y');
 
 try {
-    // 2. AMBIL PENGATURAN SESI
-    $stmtSesi = $pdo->query("SELECT * FROM pengaturansesi"); // Lowercase untuk Linux/Hostinger
+    // 2. GET SESSION SETTINGS
+    $stmtSesi = $pdo->query("SELECT * FROM pengaturansesi"); // Lowercase for Linux/Hostinger
     $pengaturans = $stmtSesi->fetchAll(PDO::FETCH_ASSOC);
 
     if (count($pengaturans) === 0) {
@@ -75,7 +75,7 @@ try {
         exit;
     }
 
-    // 3. CEK ANGGOTA
+    // 3. CHECK MEMBER
     $stmtAnggota = $pdo->prepare("SELECT * FROM anggota WHERE id_anggota = :id");
     $stmtAnggota->execute(['id' => $cleanId]);
     $anggota = $stmtAnggota->fetch(PDO::FETCH_ASSOC);
@@ -86,7 +86,7 @@ try {
         exit;
     }
 
-    // 4. CEK APAKAH SUDAH ABSEN DI SESI INI
+    // 4. CHECK IF ALREADY ATTENDED IN THIS SESSION
     $stmtCekKehadiran = $pdo->prepare("SELECT id FROM kehadiran WHERE id_anggota = :id AND sesi = :sesi AND tanggal = :tanggal LIMIT 1");
     $stmtCekKehadiran->execute([
         'id' => $cleanId,
@@ -100,7 +100,7 @@ try {
         exit;
     }
 
-    // 5. TRANSAKSI: SIMPAN KEHADIRAN & UPDATE KUNJUNGAN
+    // 5. TRANSACTION: SAVE ATTENDANCE & UPDATE VISITS
     $pdo->beginTransaction();
 
     try {
@@ -117,7 +117,7 @@ try {
         $pdo->commit();
     } catch (PDOException $e) {
         $pdo->rollBack();
-        // SQLSTATE 23000 (Integrity constraint violation - misal duplicate entry)
+        // SQLSTATE 23000 (Integrity constraint violation - e.g. duplicate entry)
         if ($e->getCode() == 23000) {
             http_response_code(403);
             echo json_encode(["error" => "Hold on! You have already checked in for this session."]);
@@ -126,7 +126,7 @@ try {
         throw $e;
     }
 
-    // 6. HITUNG RANKING (SEMESTERAN)
+    // 6. CALCULATE RANKING (SEMESTERLY)
     if ($currentMonth >= 1 && $currentMonth <= 6) {
         $semStartDate = "$currentYearNum-01-01";
         $semEndDate = "$currentYearNum-06-30";
@@ -173,7 +173,7 @@ try {
 
     $rankingSaatIni = $orangLebihRajin + $orangPoinSamaLebihSenior + 1;
 
-    // 7. KEMBALIKAN RESPONSE SUKSES
+    // 7. RETURN SUCCESS RESPONSE
     echo json_encode([
         "success" => true,
         "nim" => htmlspecialchars($anggota['id_anggota']),
