@@ -17,13 +17,38 @@ if ($method === 'PUT') {
         echo json_encode(['success' => false, 'error' => 'CSRF token mismatch.']);
         exit;
     }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (is_array($input)) {
+        try {
+            $pdo->beginTransaction();
+            $pdo->query("DELETE FROM pengaturansesi");
+            $stmt = $pdo->prepare("INSERT INTO pengaturansesi (id, nama_sesi, jam_mulai, jam_selesai) VALUES (:id, :nama, :mulai, :selesai)");
+            foreach ($input as $sesi) {
+                $stmt->execute([
+                    'id' => $sesi['id'] ?? null,
+                    'nama' => $sesi['nama_sesi'],
+                    'mulai' => $sesi['jam_mulai'],
+                    'selesai' => $sesi['jam_selesai']
+                ]);
+            }
+            $pdo->commit();
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            http_response_code(500);
+            echo json_encode(["success" => false, "error" => "Failed to update sessions."]);
+            exit;
+        }
+    }
+    echo json_encode(["success" => true]);
+    exit;
 }
 
 if ($method === 'GET') {
     $stmt = $pdo->query("SELECT id, nama_sesi, jam_mulai, jam_selesai FROM pengaturansesi ORDER BY id ASC");
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    if(count($data) === 0) {
+    if (count($data) === 0) {
         $data = [
             ["id" => 1, "nama_sesi" => "Morning", "jam_mulai" => "08:00", "jam_selesai" => "11:59"],
             ["id" => 2, "nama_sesi" => "Afternoon", "jam_mulai" => "13:00", "jam_selesai" => "16:59"],
@@ -32,23 +57,5 @@ if ($method === 'GET') {
     }
     
     echo json_encode(["success" => true, "data" => $data]);
-    exit;
-}
-
-if ($method === 'PUT') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    if(is_array($input)) {
-        $pdo->query("TRUNCATE TABLE pengaturansesi");
-        $stmt = $pdo->prepare("INSERT INTO pengaturansesi (id, nama_sesi, jam_mulai, jam_selesai) VALUES (:id, :nama, :mulai, :selesai)");
-        foreach($input as $sesi) {
-            $stmt->execute([
-                'id' => $sesi['id'] ?? null,
-                'nama' => $sesi['nama_sesi'],
-                'mulai' => $sesi['jam_mulai'],
-                'selesai' => $sesi['jam_selesai']
-            ]);
-        }
-    }
-    echo json_encode(["success" => true]);
     exit;
 }
