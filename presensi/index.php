@@ -334,6 +334,7 @@ if (empty($_SESSION['csrf_token'])) {
                     closeGuestModal();
                     document.getElementById('form-guest').reset();
                     showScanNotif(`Welcome, ${data.nama}! 👋 Enjoy your visit!`, true);
+                    playWelcomeSound();
                 } else {
                     alert(data.error || "Failed to process guest check-in.");
                 }
@@ -355,6 +356,12 @@ if (empty($_SESSION['csrf_token'])) {
             
             if (notifTimeout) clearTimeout(notifTimeout);
             notifTimeout = setTimeout(() => box.classList.add('hidden'), 3000);
+        }
+
+        // Welcoming Sound
+        function playWelcomeSound() {
+            const audio = new Audio('assets/sounds/welcome_buddy.mp3');
+            audio.play().catch(e => console.log("Gagal memutar audio:", e));
         }
 
         document.getElementById('form-scan').addEventListener('submit', async (e) => {
@@ -393,6 +400,7 @@ if (empty($_SESSION['csrf_token'])) {
                         else if (data.pulau === "Nias") sapaan = `Ya'ahowu! Hello, ${data.nama}! 👋 Have a great day!`;
                     }
                     showScanNotif(sapaan, true);
+                    playWelcomeSound();
 
                     // Render Result UI
                     const roleTitle = data.role === "student" ? "STUDENT RANK" : (data.role === "lecturer" ? "LECTURER RANK" : "STAFF RANK");
@@ -443,7 +451,6 @@ if (empty($_SESSION['csrf_token'])) {
         // Background Rendering (JS ported from BookBackground.tsx)
         const scene = document.getElementById('bg-scene');
         if (scene) {
-            // 1. Data Kata-Kata & Warna
             const subjects = [
                 { word: "Psychology", color: "rgba(192, 132, 252, 0.6)" },
                 { word: "English", color: "rgba(125, 211, 252, 0.6)" },
@@ -464,7 +471,33 @@ if (empty($_SESSION['csrf_token'])) {
                 { word: "UI/UX Design", color: "rgba(232, 121, 249, 0.6)" },
                 { word: "Business", color: "rgba(16, 185, 129, 0.6)" },
                 { word: "Cyber Security", color: "rgba(239, 68, 68, 0.6)" },
-                { word: "Data Science", color: "rgba(34, 211, 238, 0.6)" }
+                { word: "Data Science", color: "rgba(34, 211, 238, 0.6)" },
+                { word: "Mechine Learning", color: "rgba(245, 101, 49, 0.6)"},
+                { word: "DeepLearning", color: "rgba(192, 226, 21, 0.6)"},
+                { word: "Generate AI", color: "rgba(58, 234, 78, 0.6)" },
+                { word: "AI", color: "rgba(17, 37, 162, 0.6)" },
+                { word: "Design", color: "rgba(228, 13, 13, 0.6)"},
+                { word: "ERP", color: "rgba(211, 45, 248, 0.6)"},
+                { word: "Culture", color: "rgba(228, 149, 13, 0.6)"},
+                { word: "Leadership", color: "rgba(192, 132, 252, 0.6)"},
+                { word: "Digital", color: "rgba(56, 189, 248, 0.8)"},
+                { word: "Communication", color: "rgba(16, 185, 129, 0.6)"},
+                { word: "Marketing", color: "rgba(251, 191, 36, 0.6)"},
+                { word: "Bible", color: "rgba(244, 244, 244, 0.6)"},
+                { word: "Entrepreneurship", color: "rgba(192, 132, 252, 0.6)"},
+                { word: "Philosophy", color: "rgba(251, 191, 36, 0.6)"},
+                { word: "Books", color: "rgba(43, 251, 36, 0.6)"},
+                { word: "Science", color: "rgba(251, 36, 172, 0.6)"}, 
+                { word: "Physics", color: "rgba(251, 36, 36, 0.6)"},
+                { word: "Chemistry", color: "rgba(32, 63, 10, 0.6)"},
+                { word: "Biology", color: "rgba(22, 4, 74, 0.6)"},
+                { word: "Math", color: "rgba(7, 253, 155, 0.6)"},
+                { word: "Language", color: "rgba(168, 36, 251, 0.6)"},
+                { word: "Geology", color: "rgba(0, 0, 0, 0.6)"},
+                { word: "Geograph", color: "rgba(0, 102, 255, 0.6)"},
+                { word: "Geomath", color: "rgba(1, 1, 0, 0.6)"},
+                { word: "Semantics", color: "rgba(255, 0, 242, 0.6)"},
+                { word: "pragmatics", color: "rgba(255, 0, 183, 0.6)"}
             ];
 
             // 2. Generate Floating Words HTML
