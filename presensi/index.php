@@ -169,6 +169,8 @@ if (empty($_SESSION['csrf_token'])) {
                     <input type="number" id="guest-jumlah" min="1" value="1" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-slate-800 transition-all" />
                 </div>
                 
+                <div id="guest-error" class="hidden text-rose-600 bg-rose-50 border border-rose-200 text-xs p-3 rounded-xl font-medium text-center animate-in fade-in slide-in-from-bottom-2"></div>
+                
                 <button type="submit" id="btn-guest-submit" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 mt-2">
                     Check In Now
                 </button>
@@ -289,6 +291,7 @@ if (empty($_SESSION['csrf_token'])) {
         function openGuestModal() {
             const modal = document.getElementById('guest-modal');
             const content = document.getElementById('guest-modal-content');
+            document.getElementById('guest-error').classList.add('hidden');
             modal.classList.remove('hidden');
             setTimeout(() => {
                 content.classList.remove('scale-95', 'opacity-0');
@@ -317,6 +320,7 @@ if (empty($_SESSION['csrf_token'])) {
 
             if (!name) return;
 
+            document.getElementById('guest-error').classList.add('hidden');
             btn.disabled = true;
             btn.innerHTML = `<span class="flex items-center justify-center gap-2"><span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>Processing...</span>`;
 
@@ -336,10 +340,14 @@ if (empty($_SESSION['csrf_token'])) {
                     showScanNotif(`Welcome, ${data.nama}! 👋 Enjoy your visit!`, true);
                     playWelcomeSound();
                 } else {
-                    alert(data.error || "Failed to process guest check-in.");
+                    const guestError = document.getElementById('guest-error');
+                    guestError.innerText = data.error || "Failed to process guest check-in.";
+                    guestError.classList.remove('hidden');
                 }
             } catch (err) {
-                alert("Network connection error during check-in.");
+                const guestError = document.getElementById('guest-error');
+                guestError.innerText = "Network connection error during check-in.";
+                guestError.classList.remove('hidden');
             } finally {
                 btn.disabled = false;
                 btn.innerText = "Check In Now";

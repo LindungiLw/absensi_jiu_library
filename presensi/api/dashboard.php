@@ -74,12 +74,12 @@ try {
 
     // Top 10 Semester Ini
     $stmtTopSemester = $pdo->prepare("
-        SELECT a.id_anggota, a.nama, a.role, a.jurusan, COUNT(k.id) as total_hadir
+        SELECT a.id_anggota, a.nama, a.role, a.jurusan, COUNT(k.id) as total_hadir, MIN(k.waktu) as first_visit
         FROM kehadiran k
         JOIN anggota a ON k.id_anggota = a.id_anggota
         WHERE k.tanggal >= :start AND k.tanggal <= :end
         GROUP BY a.id_anggota
-        ORDER BY total_hadir DESC, a.nama ASC
+        ORDER BY total_hadir DESC, first_visit ASC
         LIMIT 10
     ");
     $stmtTopSemester->execute(['start' => $semStartDate, 'end' => $semEndDate]);
@@ -90,10 +90,11 @@ try {
     $roles = ['student', 'lecturer', 'staff'];
     foreach ($roles as $r) {
         $stmtTopRole = $pdo->prepare("
-            SELECT id_anggota, nama, role, jurusan, total_kunjungan 
-            FROM anggota 
-            WHERE role = :role AND total_kunjungan > 0
-            ORDER BY total_kunjungan DESC, nama ASC 
+            SELECT a.id_anggota, a.nama, a.role, a.jurusan, a.total_kunjungan,
+                   (SELECT MIN(waktu) FROM kehadiran k WHERE k.id_anggota = a.id_anggota) as first_visit
+            FROM anggota a
+            WHERE a.role = :role AND a.total_kunjungan > 0
+            ORDER BY a.total_kunjungan DESC, first_visit ASC 
             LIMIT 3
         ");
         $stmtTopRole->execute(['role' => $r]);
