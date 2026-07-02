@@ -135,12 +135,14 @@ try {
         $semEndDate = "$currentYearNum-12-31";
     }
 
-    $stmtMyVisits = $pdo->prepare("SELECT COUNT(*) FROM kehadiran WHERE id_anggota = :id AND tanggal >= :start AND tanggal <= :end");
+    $stmtMyVisits = $pdo->prepare("SELECT COUNT(*) as total_visits, MIN(waktu) as first_visit FROM kehadiran WHERE id_anggota = :id AND tanggal >= :start AND tanggal <= :end");
     $stmtMyVisits->execute(['id' => $cleanId, 'start' => $semStartDate, 'end' => $semEndDate]);
-    $myCurrentSemesterVisits = (int) $stmtMyVisits->fetchColumn();
+    $myVisitData = $stmtMyVisits->fetch(PDO::FETCH_ASSOC);
+    $myCurrentSemesterVisits = (int) ($myVisitData['total_visits'] ?? 0);
+    $myFirstVisit = $myVisitData['first_visit'] ?? '';
 
     $queryGroup = "
-        SELECT k.id_anggota, COUNT(k.id_anggota) as jml_kunjungan
+        SELECT k.id_anggota, COUNT(k.id_anggota) as jml_kunjungan, MIN(k.waktu) as first_visit
         FROM kehadiran k
         JOIN anggota a ON k.id_anggota = a.id_anggota
         WHERE k.tanggal >= :start AND k.tanggal <= :end AND a.role = :role
@@ -166,8 +168,12 @@ try {
 
         if ($totalKunjunganSmtIni > $myCurrentSemesterVisits) {
             $orangLebihRajin++;
-        } else if ($totalKunjunganSmtIni === $myCurrentSemesterVisits && strcmp($g['id_anggota'], $cleanId) < 0) {
-            $orangPoinSamaLebihSenior++;
+        } else if ($totalKunjunganSmtIni === $myCurrentSemesterVisits) {
+            if ($g['first_visit'] < $myFirstVisit) {
+                $orangPoinSamaLebihSenior++;
+            } else if ($g['first_visit'] === $myFirstVisit && strcmp($g['id_anggota'], $cleanId) < 0) {
+                $orangPoinSamaLebihSenior++;
+            }
         }
     }
 
